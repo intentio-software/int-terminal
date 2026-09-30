@@ -18,6 +18,27 @@ import { ShellService } from "../services/shell.service";
 import { Tab } from "../models/tab";
 
 /**
+ * The terminal's colours, taken from the app's own palette.
+ *
+ * xterm draws into a canvas and inherits nothing, so the custom properties the
+ * rest of the window uses have to be read out and handed over. Doing it this
+ * way rather than repeating the hex means a theme change reaches the terminal
+ * too, instead of leaving it the one panel that did not get the memo.
+ */
+function paletteTheme(): Record<string, string> {
+  const style = getComputedStyle(document.body);
+  const read = (name: string, fallback: string) =>
+    style.getPropertyValue(name).trim() || fallback;
+  return {
+    background: read("--surface", "#061a2c"),
+    foreground: read("--ink", "#dbe6f0"),
+    cursor: read("--accent", "#f05f36"),
+    cursorAccent: read("--surface", "#061a2c"),
+    selectionBackground: read("--selection", "rgba(240, 95, 54, 0.25)")
+  };
+}
+
+/**
  * One tab's terminal.
  *
  * Kept alive while its tab is in the background rather than destroyed and
@@ -66,12 +87,7 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
       scrollback: 10_000,
       macOptionIsMeta: true,
       allowProposedApi: true,
-      theme: {
-        background: "#11151c",
-        foreground: "#c8d3e0",
-        cursor: "#e8643c",
-        selectionBackground: "#2b3648"
-      }
+      theme: paletteTheme()
     });
     const fit = new FitAddon();
     terminal.loadAddon(fit);

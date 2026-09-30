@@ -3,6 +3,7 @@
   flex-direction: column;
   height: 100%;
   position: relative;
+  background: var(--surface);
 }
 
 /* ------------------------------------------------------------------ strip */
@@ -10,54 +11,77 @@
 .strip {
   display: flex;
   align-items: stretch;
-  gap: 2px;
-  height: 38px;
+  gap: 1px;
+  height: 40px;
   padding: 0 8px 0 84px; /* room for the traffic lights */
-  background: var(--strip);
-  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
   overflow-x: auto;
   scrollbar-width: none;
-  /* The whole strip drags the window, so there is somewhere to grab. */
-  -webkit-app-region: drag;
 }
 .strip::-webkit-scrollbar {
   display: none;
 }
 
+/* Fills whatever the tabs leave, so there is always somewhere to grab. */
+.grab {
+  flex: 1;
+  min-width: 24px;
+}
+
 .tab {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 96px;
-  max-width: 200px;
-  padding: 0 6px 0 10px;
-  border-bottom: 2px solid transparent;
+  min-width: 104px;
+  max-width: 210px;
+  padding: 0 6px 0 11px;
+  border-radius: 7px 7px 0 0;
   color: var(--ink-faint);
   font-size: 12px;
   white-space: nowrap;
   cursor: default;
-  -webkit-app-region: no-drag;
+  transition: background 120ms ease, color 120ms ease;
 }
 .tab:hover {
-  background: var(--bg-soft);
+  background: var(--hover);
+  color: var(--ink-muted);
 }
 .tab.on {
-  background: var(--bg);
-  color: var(--ink);
+  background: var(--surface);
+  color: var(--ink-strong);
 }
-/* A coloured tab keeps its colour when it is not in front, which is the whole
-   reason for colouring it. */
-.tab:not(.on)[style*="border-bottom-color"] {
-  opacity: 0.85;
+/* The accent underline marks the tab in front, matching how the suite marks a
+   selected row. A tab with its own colour uses that instead, so a coloured tab
+   is still recognisable while it is the active one. */
+.tab.on::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 2px;
+  background: var(--tab-colour, var(--accent));
+}
+/* Not in front, but coloured: a quiet bar, so the strip stays readable. */
+.tab:not(.on)[data-coloured="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 6px 0 6px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--tab-colour);
+  opacity: 0.55;
 }
 
 .caption {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: 0.01em;
 }
 .emoji {
   font-size: 12px;
+  line-height: 1;
 }
 
 .rename {
@@ -66,7 +90,7 @@
   border: none;
   border-bottom: 1px solid var(--accent);
   background: transparent;
-  color: var(--ink);
+  color: var(--ink-strong);
   font: inherit;
   outline: none;
 }
@@ -78,9 +102,11 @@
   color: var(--ink-faint);
   font-size: 13px;
   line-height: 1;
-  padding: 2px 3px;
+  padding: 2px 4px;
+  border-radius: 4px;
   cursor: pointer;
   opacity: 0;
+  transition: opacity 120ms ease;
 }
 .tab:hover .cog,
 .tab:hover .x,
@@ -89,96 +115,110 @@
 }
 .tab .cog:hover,
 .tab .x:hover {
-  color: var(--ink);
+  color: var(--ink-strong);
+  background: var(--hover);
 }
 
 .new {
   align-self: center;
   margin-left: 4px;
   border: none;
+  border-radius: 6px;
   background: transparent;
   color: var(--ink-faint);
   font-size: 17px;
   line-height: 1;
-  padding: 0 8px;
+  padding: 3px 9px;
   cursor: pointer;
-  -webkit-app-region: no-drag;
 }
 .new:hover {
-  color: var(--ink);
+  color: var(--accent);
+  background: var(--hover);
 }
 
 /* --------------------------------------------------------------- settings */
 
 .settings {
   position: absolute;
-  top: 40px;
-  right: 10px;
+  top: 44px;
+  right: 12px;
   z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg-soft);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-raised);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 .group {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 .label {
   font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: var(--ink-faint);
+  color: var(--ink-muted);
 }
 .swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  max-width: 190px;
+  gap: 5px;
+  max-width: 196px;
 }
 .swatch {
-  width: 18px;
-  height: 18px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
+  width: 19px;
+  height: 19px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
   cursor: pointer;
 }
 .swatch.none {
-  background: repeating-linear-gradient(45deg, #2a3341 0 3px, transparent 3px 6px);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--hover) 0 3px,
+    transparent 3px 6px
+  );
 }
 .swatch.on,
 .glyph.on {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 .glyph {
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
+  width: 23px;
+  height: 23px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
   background: transparent;
-  color: var(--ink-faint);
+  color: var(--ink-muted);
   font-size: 12px;
   cursor: pointer;
+}
+.glyph:hover {
+  background: var(--hover);
 }
 .zoom {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
 }
 .zoom button {
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
+  width: 23px;
+  height: 23px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
   background: transparent;
   color: var(--ink);
   cursor: pointer;
+}
+.zoom button:hover {
+  background: var(--hover);
+  color: var(--accent);
 }
 .size {
   font-size: 11px;

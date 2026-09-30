@@ -1,40 +1,30 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <!-- Shares the palette and rounded square of the Intentio family. The mark is
-       a to-do list: three items, two done and one still to go.
+       a prompt: a chevron and the cursor waiting after it.
 
-       Only three rows, deliberately. Four or more turn to grey mush by the time
-       the icon reaches the menu bar, and the shapes are heavy for the same
-       reason — a hairline checklist does not survive being 16px tall. -->
+       Two shapes only, and heavy ones. A terminal icon wants to be the thing
+       you have typed at ten thousand times, and anything finer - a window
+       frame, a row of text, a blinking underscore - is grey mush by the time it
+       is 16px tall in a dock. The chevron alone reads as "type here" at any
+       size. -->
 
   <!-- Background -->
   <rect width="512" height="512" rx="96" fill="#062a44"/>
 
-  <!-- Item one: done -->
-  <circle cx="146" cy="158" r="38" fill="#f05f36"/>
+  <!-- The prompt. Off-centre on purpose: a chevron and cursor sitting together
+       on the left is how a prompt actually looks, and centring the pair would
+       lose that. -->
   <path
-    d="M 128 158 L 141 171 L 166 145"
+    d="M 150 178 L 246 256 L 150 334"
     fill="none"
-    stroke="#ffffff"
-    stroke-width="15"
+    stroke="#f05f36"
+    stroke-width="46"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
-  <rect x="208" y="142" width="188" height="32" rx="16" fill="#94a9bd"/>
 
-  <!-- Item two: done -->
-  <circle cx="146" cy="256" r="38" fill="#f05f36"/>
-  <path
-    d="M 128 256 L 141 269 L 166 243"
-    fill="none"
-    stroke="#ffffff"
-    stroke-width="15"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
-  <rect x="208" y="240" width="188" height="32" rx="16" fill="#94a9bd"/>
-
-  <!-- Item three: still to do. An open ring and a bright bar, so the unfinished
-       item is the one that draws the eye. -->
-  <circle cx="146" cy="354" r="31" fill="none" stroke="#ffffff" stroke-width="14"/>
-  <rect x="208" y="338" width="188" height="32" rx="16" fill="#ffffff"/>
+  <!-- The cursor. A filled block rather than an underscore: it holds its weight
+       when the icon is small, and it is what a terminal shows when it is
+       waiting for you rather than running something. -->
+  <rect x="288" y="296" width="80" height="40" rx="12" fill="#94a9bd"/>
 </svg>

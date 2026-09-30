@@ -1,6 +1,6 @@
 //! Intentio Terminal.
 
-mod pty;
+pub mod pty;
 mod tabs;
 
 use std::sync::Arc;

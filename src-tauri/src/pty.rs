@@ -56,11 +56,56 @@ pub struct Sessions {
 
 /// The shell to start.
 ///
-/// `$SHELL` first, because the shell somebody chose is the shell they want -
-/// this machine runs fish while `$SHELL` in a login session may say otherwise,
-/// and guessing from a list would get it wrong for exactly the people who care.
-fn default_shell() -> String {
-    std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into())
+/// The account's login shell, asked of the system, rather than `$SHELL`.
+/// `$SHELL` is inherited from whatever launched the app and is routinely
+/// wrong: on this machine it reads /bin/zsh while the login shell is fish.
+/// Starting the wrong shell means none of somebody's aliases, functions or
+/// prompt, which is not a small thing.
+///
+/// An explicit choice in settings wins over both.
+pub fn default_shell() -> String {
+    if let Some(chosen) = configured_shell() {
+        return chosen;
+    }
+    login_shell()
+        .or_else(|| std::env::var("SHELL").ok())
+        .unwrap_or_else(|| "/bin/zsh".into())
+}
+
+/// A shell the person has chosen, from `~/.intentio/terminal.json`.
+fn configured_shell() -> Option<String> {
+    let home = std::env::var_os("HOME")?;
+    let path = std::path::PathBuf::from(home).join(".intentio").join("terminal.json");
+    let text = std::fs::read_to_string(path).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let shell = value.get("shell")?.as_str()?.trim().to_string();
+    (!shell.is_empty() && std::path::Path::new(&shell).exists()).then_some(shell)
+}
+
+#[cfg(target_os = "macos")]
+fn login_shell() -> Option<String> {
+    // Directory Services is where a Mac actually keeps this; /etc/passwd is a
+    // stub on macOS and does not have it.
+    let user = std::env::var("USER").ok()?;
+    let out = std::process::Command::new("dscl")
+        .args([".", "-read", &format!("/Users/{user}"), "UserShell"])
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    let shell = text.split_whitespace().nth(1)?.to_string();
+    std::path::Path::new(&shell).exists().then_some(shell)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn login_shell() -> Option<String> {
+    let user = std::env::var("USER").ok()?;
+    let passwd = std::fs::read_to_string("/etc/passwd").ok()?;
+    passwd
+        .lines()
+        .find(|line| line.starts_with(&format!("{user}:")))
+        .and_then(|line| line.rsplit(':').next())
+        .map(str::to_string)
+        .filter(|shell| std::path::Path::new(shell).exists())
 }
 
 fn home() -> String {
@@ -83,8 +128,8 @@ pub fn spawn<R: Runtime>(
 
     let shell = default_shell();
     let mut command = CommandBuilder::new(&shell);
-    // A login shell, so profiles run and the environment matches what the
-    // person gets when they open a terminal anywhere else.
+    // A login shell, so profiles run and the environment matches what somebody
+    // gets opening a terminal anywhere else. zsh, bash and fish all take -l.
     command.arg("-l");
 
     let start_in = cwd

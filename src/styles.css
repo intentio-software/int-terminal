@@ -1,13 +1,71 @@
-/* The window chrome. Everything inside a tab is drawn by xterm. */
+/*
+ * Global styles and the colour system.
+ *
+ * Every colour in the app — including the CodeMirror editor theme — reads from
+ * these custom properties, so a theme switch is one attribute change on <body>.
+ * The palette matches Intentio Mind Map so the two apps read as siblings.
+ */
+
 :root {
-  --bg: #11151c;
-  --bg-soft: #161b24;
-  --strip: #0d1116;
-  --ink: #c8d3e0;
-  --ink-faint: #6b7a8d;
-  --line: #222a36;
-  --accent: #e8643c;
+  --font-body: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
 }
+
+body[data-theme="dark"],
+body:not([data-theme]) {
+  --surface: #061a2c;
+  --panel: #041624;
+  --panel-raised: #0a2237;
+  --border: rgba(180, 210, 235, 0.13);
+  --hover: rgba(180, 210, 235, 0.07);
+  --selected: rgba(240, 95, 54, 0.16);
+  --active-line: rgba(180, 210, 235, 0.045);
+  --selection: rgba(240, 95, 54, 0.25);
+
+  --ink-strong: #f2f7fb;
+  --ink: #dbe6f0;
+  --ink-muted: #9fb3c6;
+  --ink-faint: #6d859b;
+
+  --accent: #f05f36;
+  --accent-strong: #d94d26;
+  --accent-soft: #ffa184;
+  --link: #6fb6ff;
+  --link-unresolved: #b98cd8;
+  --danger: #ff7a6b;
+}
+
+body[data-theme="light"] {
+  --surface: #ffffff;
+  --panel: #f4f7fb;
+  --panel-raised: #ffffff;
+  --border: rgba(6, 42, 68, 0.14);
+  --hover: rgba(6, 42, 68, 0.05);
+  --selected: rgba(240, 95, 54, 0.12);
+  --active-line: rgba(6, 42, 68, 0.035);
+  --selection: rgba(240, 95, 54, 0.2);
+
+  --ink-strong: #062a44;
+  --ink: #17384f;
+  --ink-muted: #4a6479;
+  --ink-faint: #7b91a3;
+
+  --accent: #d94d26;
+  --accent-strong: #b93d1c;
+  --accent-soft: #a8431f;
+  --link: #1668c4;
+  --link-unresolved: #7a4fa3;
+  --danger: #c33b2c;
+}
+
+/*
+ * Intentio Terminal.
+ *
+ * The palette above is copied from Intentio Tasks so the suite reads as one
+ * family. What a terminal adds is that xterm draws its own cells, so the
+ * colours it uses have to be handed to it in TypeScript rather than inherited
+ * - see terminal-pane.component.ts, which reads these same properties.
+ */
 
 * {
   box-sizing: border-box;
@@ -18,9 +76,9 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: var(--bg);
+  background: var(--surface);
   color: var(--ink);
-  font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: 13px var(--font-body);
 }
 
 app-root {

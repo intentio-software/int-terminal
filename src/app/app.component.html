@@ -2,12 +2,16 @@
   <!-- The strip sits under the traffic lights, which is why it has a left
        inset: the window uses an overlay title bar so tabs get the full width
        everywhere else. -->
-  <nav class="strip" (click)="editing.set(''); renaming.set('')">
+  <!-- data-tauri-drag-region, not -webkit-app-region: the latter is an
+       Electron property and does nothing in WKWebView, which is why the
+       window could not be dragged at all. -->
+  <nav class="strip" data-tauri-drag-region (click)="editing.set(''); renaming.set('')">
     @for (tab of tabs(); track tab.id) {
       <div
         class="tab"
         [class.on]="tab.id === active()"
-        [style.borderBottomColor]="tab.colour || 'transparent'"
+        [style.--tab-colour]="tab.colour || null"
+        [attr.data-coloured]="tab.colour ? 'true' : null"
         (click)="select(tab.id)"
         (dblclick)="startRename(tab, $event)"
         [title]="tab.cwd"
@@ -36,6 +40,9 @@
     }
 
     <button class="new" title="New tab (⌘T)" (click)="newTab()">+</button>
+    <!-- Whatever is left over after the tabs, so there is always somewhere to
+         grab even when the strip is full. -->
+    <span class="grab" data-tauri-drag-region></span>
   </nav>
 
   @for (tab of tabs(); track tab.id) {
