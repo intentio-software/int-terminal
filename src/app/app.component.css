@@ -9,6 +9,12 @@
 /* ------------------------------------------------------------------ strip */
 
 .strip {
+  /* Chrome, not text. Without this, dragging a tab or double-clicking to
+     rename one starts a browser text selection and leaves the captions
+     highlighted in blue. Terminal content is deliberately left selectable -
+     xterm does its own. */
+  user-select: none;
+  -webkit-user-select: none;
   display: flex;
   align-items: stretch;
   gap: 1px;
@@ -96,6 +102,8 @@
 }
 
 .rename {
+  user-select: text;
+  -webkit-user-select: text;
   flex: 1;
   min-width: 0;
   border: none;
@@ -150,6 +158,8 @@
 /* --------------------------------------------------------------- settings */
 
 .settings {
+  user-select: none;
+  -webkit-user-select: none;
   position: absolute;
   top: 44px;
   right: 12px;

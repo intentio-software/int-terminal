@@ -217,6 +217,9 @@ export class AppComponent implements OnInit {
     if (event.button !== 0 || (event.target as HTMLElement).closest("button, input")) {
       return;
     }
+    // Stop the browser treating this as the start of a text selection, which
+    // is what left captions highlighted after every tab switch.
+    event.preventDefault();
     this.dragFrom = this.tabs().findIndex((t) => t.id === tab.id);
     this.dragStartX = event.clientX;
     this.moved = false;
