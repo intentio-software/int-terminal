@@ -116,6 +116,8 @@ pub fn run() {
         // was on a second monitor which is no longer there, and would come back
         // somewhere nobody can reach it.
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(AppState { sessions: Arc::new(pty::Sessions::default()) })
