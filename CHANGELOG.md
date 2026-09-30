@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/intentio-software/int-terminal/compare/v1.1.0...v1.2.0) (2026-09-30)
+
+
+### Features
+
+* dropping a file types its path ([0dc509b](https://github.com/intentio-software/int-terminal/commit/0dc509b65c30bb3d951578a4aa840014f460290e))
+
 # [1.1.0](https://github.com/intentio-software/int-terminal/compare/v1.0.0...v1.1.0) (2026-09-30)
 
 
