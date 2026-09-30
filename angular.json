@@ -16,17 +16,36 @@
             "index": "src/index.html",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
-            "styles": ["node_modules/@xterm/xterm/css/xterm.css", "src/styles.css"]
+            "styles": [
+              "node_modules/@xterm/xterm/css/xterm.css",
+              "src/styles.css"
+            ],
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "src/assets",
+                "output": "assets"
+              }
+            ]
           },
           "configurations": {
-            "production": { "optimization": true, "outputHashing": "all" },
-            "development": { "optimization": false, "sourceMap": true }
+            "production": {
+              "optimization": true,
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "sourceMap": true
+            }
           },
           "defaultConfiguration": "production"
         },
         "serve": {
           "builder": "@angular/build:dev-server",
-          "options": { "buildTarget": "int-terminal:build:development", "port": 4200 }
+          "options": {
+            "buildTarget": "int-terminal:build:development",
+            "port": 4200
+          }
         },
         "test": {
           "builder": "@angular/build:unit-test",
