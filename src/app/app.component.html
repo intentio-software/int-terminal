@@ -186,21 +186,28 @@
   }
 
   @if (updater.notice(); as notice) {
-    <div class="notice" [class.bad]="notice.state === 'failed'">
-      <span class="notice-text">{{ notice.message }}</span>
-      @if (notice.state === 'found') {
-        <button type="button" class="notice-do" (click)="updater.install()">Update and restart</button>
-      }
-      <button type="button" class="notice-x" (click)="updater.dismiss()">×</button>
-    </div>
-  }
+    <div class="notice" [class.bad]="notice.state === 'failed'" role="status">
+      <svg class="notice-icon" viewBox="0 0 16 16" aria-hidden="true">
+        <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.6" />
+        <circle cx="8" cy="4.6" r="0.95" fill="currentColor" />
+        <path d="M 8 7.2 L 8 11.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+      </svg>
 
-  @if (pickerOpen()) {
-    <app-host-picker
-      [hosts]="hosts()"
-      (chosen)="connect($event)"
-      (cancelled)="pickerOpen.set(false)"
-    ></app-host-picker>
+      <div class="notice-text">
+        <span class="notice-summary">{{ noticeSummary(notice) }}</span>
+        <div class="notice-detail">{{ noticeDetail(notice) }}</div>
+        @if (notice.state === 'found') {
+          <button type="button" class="notice-do" (click)="updater.install()">Update Now</button>
+        }
+      </div>
+
+      <button type="button" class="notice-x" aria-label="Dismiss" (click)="updater.dismiss()">
+        <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+          <path d="M 2 2 L 14 14 M 14 2 L 2 14" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" />
+        </svg>
+      </button>
+    </div>
   }
 
   <main class="panes">

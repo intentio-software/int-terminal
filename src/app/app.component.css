@@ -335,52 +335,99 @@
   color: var(--accent);
 }
 
-/* Bottom right, over the terminal. An update is worth mentioning and not
-   worth interrupting for, so it sits out of the way until it is dealt with. */
+/* The update toast.
+ *
+ * Every value here is PrimeNG's Aura preset, dark mode, severity info - the
+ * same toast Tasks, Knowledge and Mind Map show, because they use Aura and
+ * this app does not. Reproduced from the tokens rather than guessed at:
+ * 25rem wide, 6px radius, 0.75rem padding, a blue.500 background at 84%
+ * transparency over a blue.700 border at 64%, and a 1.5px backdrop blur.
+ *
+ * Above the About backdrop at 3000, as it is there: an update notice that
+ * appeared behind the blur would be unreachable. */
 .notice {
   position: fixed;
-  right: 14px;
-  bottom: 14px;
-  z-index: 45;
+  right: 20px;
+  bottom: 20px;
+  z-index: 4000;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 11px 9px 14px;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: 9px;
-  background: var(--panel-raised);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
-  font-size: 12px;
-  color: var(--ink);
+  align-items: flex-start;
+  gap: 0.65rem;
+  width: 25rem;
+  max-width: calc(100vw - 40px);
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, #1d4ed8, transparent 64%);
+  border-radius: 6px;
+  background: color-mix(in srgb, #3b82f6, transparent 84%);
+  backdrop-filter: blur(1.5px);
+  box-shadow: 0 4px 8px 0 color-mix(in srgb, #3b82f6, transparent 96%);
+  color: #3b82f6;
+  font-family: var(--font-body);
 }
 .notice.bad {
-  border-left-color: var(--danger);
+  border-color: color-mix(in srgb, #b91c1c, transparent 64%);
+  background: color-mix(in srgb, #ef4444, transparent 84%);
+  box-shadow: 0 4px 8px 0 color-mix(in srgb, #ef4444, transparent 96%);
+  color: #ef4444;
+}
+
+.notice-icon {
+  flex: none;
+  margin-top: 0.1rem;
+  width: 1.125rem;
+  height: 1.125rem;
 }
 .notice-text {
-  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+.notice-summary {
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+.notice-detail {
+  margin: 0;
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  /* Aura puts the detail in surface.0 rather than the severity colour. */
+  color: #ffffff;
+  opacity: 0.85;
+  overflow-wrap: anywhere;
 }
 .notice-do {
-  border: 1px solid var(--accent);
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid currentColor;
   border-radius: 6px;
   background: transparent;
-  color: var(--accent);
+  color: inherit;
   font: inherit;
-  font-size: 11.5px;
-  padding: 3px 9px;
+  font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
 }
 .notice-do:hover {
-  background: var(--selected);
+  background: rgba(255, 255, 255, 0.08);
 }
 .notice-x {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
+  border-radius: 50%;
   background: transparent;
-  color: var(--ink-faint);
-  font-size: 15px;
-  line-height: 1;
+  color: inherit;
   cursor: pointer;
 }
 .notice-x:hover {
-  color: var(--ink-strong);
+  background: rgba(255, 255, 255, 0.05);
 }

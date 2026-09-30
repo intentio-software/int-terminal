@@ -198,6 +198,28 @@ export class AppComponent implements OnInit {
     }
   }
 
+  /** Split into a heading and a line under it, as the suite's toast does. */
+  noticeSummary(notice: { state: string; version: string }): string {
+    switch (notice.state) {
+      case "found":
+        return `Update available — v${notice.version}`;
+      case "downloading":
+        return "Downloading…";
+      case "ready":
+        return "Installed";
+      case "failed":
+        return "Update failed";
+      default:
+        return "Up to date";
+    }
+  }
+
+  noticeDetail(notice: { state: string; message: string }): string {
+    return notice.state === "found"
+      ? 'Click "Update Now" to download and restart.'
+      : notice.message;
+  }
+
   // ------------------------------------------------------------------ ssh
 
   /**

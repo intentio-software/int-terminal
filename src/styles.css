@@ -78,6 +78,13 @@ body {
   overflow: hidden;
   background: var(--surface);
   color: var(--ink);
+}
+
+/* The root stays at the browser default, because rem resolves against it and
+   the About box and the toast are sized in rem to match the rest of the suite.
+   Setting it to 13 here made both about a fifth smaller than the same dialog
+   in Tasks. The terminal chrome wants 13, so body carries that instead. */
+body {
   font: 13px var(--font-body);
 }
 
