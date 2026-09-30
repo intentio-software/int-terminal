@@ -16,6 +16,7 @@ import { TerminalPaneComponent } from "./components/terminal-pane.component";
 import { ShellService } from "./services/shell.service";
 import { UpdaterService } from "./services/updater.service";
 import { CURSOR_STYLES, SavedSession, SshHost, TAB_COLOURS, TAB_EMOJI, Tab, TerminalSettings } from "./models/tab";
+import { quotePaths } from "./models/shell-quote";
 
 /** Size steps, so zoom lands on values that render crisply. */
 const SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24];
@@ -83,6 +84,7 @@ export class AppComponent implements OnInit {
       await this.newTab();
     }
     window.addEventListener("keydown", (event) => this.onKey(event));
+    void this.acceptDroppedFiles();
 
     // Dismiss on a click anywhere else.
     //
@@ -176,6 +178,41 @@ export class AppComponent implements OnInit {
   /** The shell ended by itself, so the tab goes with it. */
   onExited(id: string): void {
     void this.closeTab(id);
+  }
+
+  /**
+   * Dropping a file types its path at the prompt.
+   *
+   * What every terminal has always done, and what a tool running inside one
+   * relies on: dragging an image into a Claude Code session is how the image
+   * gets there, and without this the drop simply vanished.
+   *
+   * The paths come from Tauri rather than the browser. A webview drop gives a
+   * File object with no path at all - by design, and no use to a shell, which
+   * needs somewhere on disk to look.
+   *
+   * Typed, not run. The path lands at the cursor with a trailing space and
+   * waits, exactly as it would in Terminal: dropping something is a statement
+   * about what you are about to do, not an instruction to do it.
+   */
+  private async acceptDroppedFiles(): Promise<void> {
+    try {
+      const { getCurrentWebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+      await getCurrentWebviewWindow().onDragDropEvent(async (event) => {
+        if (event.payload.type !== "drop") {
+          return;
+        }
+        const paths = event.payload.paths ?? [];
+        if (!paths.length) {
+          return;
+        }
+        const id = this.active();
+        await this.shell.write(id, `${quotePaths(paths)} `);
+        this.panes?.find((pane) => pane.tab.id === id)?.focus();
+      });
+    } catch {
+      // Outside Tauri there is nothing to drop onto.
+    }
   }
 
   /** Close any open panel unless the click was inside one. */
