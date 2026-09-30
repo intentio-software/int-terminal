@@ -1,0 +1,96 @@
+<div class="shell">
+  <!-- The strip sits under the traffic lights, which is why it has a left
+       inset: the window uses an overlay title bar so tabs get the full width
+       everywhere else. -->
+  <nav class="strip" (click)="editing.set(''); renaming.set('')">
+    @for (tab of tabs(); track tab.id) {
+      <div
+        class="tab"
+        [class.on]="tab.id === active()"
+        [style.borderBottomColor]="tab.colour || 'transparent'"
+        (click)="select(tab.id)"
+        (dblclick)="startRename(tab, $event)"
+        [title]="tab.cwd"
+      >
+        @if (tab.emoji) {
+          <span class="emoji">{{ tab.emoji }}</span>
+        }
+
+        @if (renaming() === tab.id) {
+          <input
+            class="rename"
+            [(ngModel)]="renameDraft"
+            (click)="$event.stopPropagation()"
+            (keydown.enter)="commitRename(tab.id)"
+            (keydown.escape)="renaming.set('')"
+            (blur)="commitRename(tab.id)"
+            autofocus
+          />
+        } @else {
+          <span class="caption">{{ caption(tab) }}</span>
+        }
+
+        <button class="cog" title="Appearance" (click)="toggleSettings(tab.id, $event)">⋯</button>
+        <button class="x" title="Close (⌘W)" (click)="closeTab(tab.id, $event)">×</button>
+      </div>
+    }
+
+    <button class="new" title="New tab (⌘T)" (click)="newTab()">+</button>
+  </nav>
+
+  @for (tab of tabs(); track tab.id) {
+    @if (editing() === tab.id) {
+      <div class="settings" (click)="$event.stopPropagation()">
+        <div class="group">
+          <span class="label">Colour</span>
+          <div class="swatches">
+            @for (choice of colours; track choice.value) {
+              <button
+                class="swatch"
+                [class.none]="!choice.value"
+                [class.on]="tab.colour === choice.value"
+                [style.background]="choice.value || 'transparent'"
+                [title]="choice.name"
+                (click)="setColour(tab.id, choice.value)"
+              ></button>
+            }
+          </div>
+        </div>
+
+        <div class="group">
+          <span class="label">Mark</span>
+          <div class="swatches">
+            @for (choice of emoji; track choice) {
+              <button
+                class="glyph"
+                [class.on]="tab.emoji === choice"
+                (click)="setEmoji(tab.id, choice)"
+              >
+                {{ choice || "–" }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="group">
+          <span class="label">Text size</span>
+          <div class="zoom">
+            <button (click)="zoom(tab.id, -1)">−</button>
+            <span class="size">{{ tab.fontSize }}px</span>
+            <button (click)="zoom(tab.id, 1)">+</button>
+          </div>
+        </div>
+      </div>
+    }
+  }
+
+  <main class="panes">
+    @for (tab of tabs(); track tab.id) {
+      <!-- Hidden, never unmounted: the shell keeps running and the screen it
+           has drawn is not something we can rebuild. -->
+      <div class="pane" [class.showing]="tab.id === active()">
+        <app-terminal-pane [tab]="tab" (exited)="onExited($event)"></app-terminal-pane>
+      </div>
+    }
+  </main>
+</div>

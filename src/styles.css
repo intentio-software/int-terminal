@@ -1,0 +1,29 @@
+/* The window chrome. Everything inside a tab is drawn by xterm. */
+:root {
+  --bg: #11151c;
+  --bg-soft: #161b24;
+  --strip: #0d1116;
+  --ink: #c8d3e0;
+  --ink-faint: #6b7a8d;
+  --line: #222a36;
+  --accent: #e8643c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+app-root {
+  display: block;
+  height: 100%;
+}

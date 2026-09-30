@@ -1,0 +1,204 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+/* ------------------------------------------------------------------ strip */
+
+.strip {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 38px;
+  padding: 0 8px 0 84px; /* room for the traffic lights */
+  background: var(--strip);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* The whole strip drags the window, so there is somewhere to grab. */
+  -webkit-app-region: drag;
+}
+.strip::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 96px;
+  max-width: 200px;
+  padding: 0 6px 0 10px;
+  border-bottom: 2px solid transparent;
+  color: var(--ink-faint);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: default;
+  -webkit-app-region: no-drag;
+}
+.tab:hover {
+  background: var(--bg-soft);
+}
+.tab.on {
+  background: var(--bg);
+  color: var(--ink);
+}
+/* A coloured tab keeps its colour when it is not in front, which is the whole
+   reason for colouring it. */
+.tab:not(.on)[style*="border-bottom-color"] {
+  opacity: 0.85;
+}
+
+.caption {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.emoji {
+  font-size: 12px;
+}
+
+.rename {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-bottom: 1px solid var(--accent);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+
+.tab .cog,
+.tab .x {
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 3px;
+  cursor: pointer;
+  opacity: 0;
+}
+.tab:hover .cog,
+.tab:hover .x,
+.tab.on .x {
+  opacity: 1;
+}
+.tab .cog:hover,
+.tab .x:hover {
+  color: var(--ink);
+}
+
+.new {
+  align-self: center;
+  margin-left: 4px;
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 17px;
+  line-height: 1;
+  padding: 0 8px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.new:hover {
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------- settings */
+
+.settings {
+  position: absolute;
+  top: 40px;
+  right: 10px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-soft);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-faint);
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 190px;
+}
+.swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.swatch.none {
+  background: repeating-linear-gradient(45deg, #2a3341 0 3px, transparent 3px 6px);
+}
+.swatch.on,
+.glyph.on {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+.glyph {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 12px;
+  cursor: pointer;
+}
+.zoom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.zoom button {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.size {
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------------------------------------------- panes */
+
+.panes {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+.pane {
+  position: absolute;
+  inset: 0;
+  /* Hidden rather than removed, so the shell and its scrollback survive. */
+  visibility: hidden;
+}
+.pane.showing {
+  visibility: visible;
+}
