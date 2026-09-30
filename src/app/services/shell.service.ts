@@ -103,6 +103,15 @@ export class ShellService {
     return this.invoke<string>("directory_label", { cwd });
   }
 
+  /** Report what the renderer is doing, for a problem nobody can screenshot. */
+  async diagnostics(report: Record<string, unknown>): Promise<void> {
+    try {
+      await this.invoke("record_diagnostics", { report });
+    } catch {
+      // Diagnostics must never be the thing that breaks the app.
+    }
+  }
+
   async settings(): Promise<TerminalSettings> {
     return this.invoke<TerminalSettings>("terminal_settings");
   }

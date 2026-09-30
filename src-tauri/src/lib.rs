@@ -51,6 +51,22 @@ fn directory_label(cwd: String) -> String {
     tabs::label_for(&cwd)
 }
 
+/// Write what the frontend knows about itself, for diagnosing a rendering
+/// problem that cannot be screenshotted from here.
+///
+/// A file rather than a console line: the console of a packaged app is not
+/// somewhere anybody can look, and "it says something in devtools" is not a
+/// report somebody should have to relay.
+#[tauri::command]
+fn record_diagnostics(report: serde_json::Value) {
+    let Some(home) = std::env::var_os("HOME") else { return };
+    let path = std::path::PathBuf::from(home).join(".intentio").join("terminal-diagnostics.json");
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let _ = std::fs::write(path, serde_json::to_string_pretty(&report).unwrap_or_default());
+}
+
 #[tauri::command]
 fn terminal_settings() -> settings::Settings {
     settings::read()
@@ -95,6 +111,7 @@ pub fn run() {
             close_shell,
             shell_cwd,
             directory_label,
+            record_diagnostics,
             terminal_settings,
             set_terminal_settings,
             shells,

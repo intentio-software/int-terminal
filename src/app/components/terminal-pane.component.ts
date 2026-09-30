@@ -18,6 +18,12 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { ShellService } from "../services/shell.service";
 import { Tab, TerminalSettings } from "../models/tab";
 
+/** One frame, so a freshly created element has been laid out and can be
+ *  measured. */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
 /**
  * The terminal's colours, taken from the app's own palette.
  *
@@ -110,26 +116,59 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
     // It can fail - a lost context, a machine with no usable GPU - and losing
     // the renderer must not lose the terminal, so the DOM path stays as the
     // fallback it was always meant to be.
+    let renderer = "dom";
+    let rendererError = "";
     try {
       const webgl = new WebglAddon();
       webgl.onContextLoss(() => webgl.dispose());
       terminal.loadAddon(webgl);
-    } catch {
-      // Left on the DOM renderer, which is slower but still works.
+      renderer = "webgl";
+    } catch (error) {
+      // Left on the DOM renderer, which is slower but still works. Recorded
+      // rather than swallowed: a renderer that quietly refused to load is
+      // exactly the kind of thing that wastes an afternoon.
+      rendererError = String(error);
     }
-
-    fit.fit();
 
     this.terminal = terminal;
     this.fit = fit;
     this.applyCursor();
+
+    // Measure only once the element has a size.
+    //
+    // open() and fit() in the same tick gives xterm's untouched 80x24,
+    // because the element has not been laid out yet and there is nothing to
+    // measure. The shell then gets told 80x24 while the window is half again
+    // as wide, and every program in it draws for a screen that is not the one
+    // on display - text struck through by lines meant for other rows, and old
+    // output left behind because the terminal and the program disagree about
+    // where the rows are.
+    await nextFrame();
+    fit.fit();
 
     terminal.onData((data) => void this.shell.write(this.tab.id, data));
 
     this.detach = this.shell.onOutput(this.tab.id, (data) => terminal.write(data));
     this.shell.onExit(this.tab.id, () => this.exited.emit(this.tab.id));
 
+    // Spawned with the fitted size, never the default: the first thing a
+    // shell does is draw a prompt, and it should draw it for this window.
     await this.shell.spawn(this.tab.id, this.tab.cwd, terminal.rows, terminal.cols);
+
+    void this.shell.diagnostics({
+      when: "after fit and spawn",
+      renderer,
+      rendererError,
+      devicePixelRatio: window.devicePixelRatio,
+      rows: terminal.rows,
+      cols: terminal.cols,
+      fontSize: terminal.options.fontSize,
+      fontFamily: terminal.options.fontFamily,
+      surface: {
+        width: this.surface.nativeElement.clientWidth,
+        height: this.surface.nativeElement.clientHeight
+      }
+    });
 
     // The pane changes size when the window does and when the tab strip wraps,
     // so watch the element rather than the window.
