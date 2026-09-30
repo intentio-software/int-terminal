@@ -65,6 +65,15 @@ export class AppComponent implements OnInit {
       await this.newTab();
     }
     window.addEventListener("keydown", (event) => this.onKey(event));
+
+    // Dismiss on a click anywhere else.
+    //
+    // On the document rather than the strip, because most of the window is
+    // the terminal, and a panel you can only close by finding the small
+    // button that opened it is a panel in the way. Capture phase so it still
+    // fires when the click lands inside xterm, which stops propagation of its
+    // own.
+    document.addEventListener("pointerdown", (event) => this.dismissPopovers(event), true);
     // Tabs and their directories are saved as the window closes, so a crash
     // costs at most the current layout rather than the whole session.
     window.addEventListener("beforeunload", () => void this.persist());
@@ -149,6 +158,24 @@ export class AppComponent implements OnInit {
   /** The shell ended by itself, so the tab goes with it. */
   onExited(id: string): void {
     void this.closeTab(id);
+  }
+
+  /** Close any open panel unless the click was inside one. */
+  private dismissPopovers(event: Event): void {
+    if (!this.editing() && !this.settingsOpen() && !this.renaming()) {
+      return;
+    }
+    const target = event.target as HTMLElement | null;
+    // The button that opened it counts as inside, or the click that closes it
+    // would be followed by the toggle reopening it.
+    if (target?.closest(".settings, .cog, .preferences-button")) {
+      return;
+    }
+    this.editing.set("");
+    this.settingsOpen.set(false);
+    if (this.renaming()) {
+      this.commitRename(this.renaming());
+    }
   }
 
   // ----------------------------------------------------------- preferences
@@ -322,6 +349,14 @@ export class AppComponent implements OnInit {
   // ------------------------------------------------------------------- keys
 
   private onKey(event: KeyboardEvent): void {
+    // Escape closes whatever is open, before any of the shortcuts.
+    if (event.key === "Escape" && (this.editing() || this.settingsOpen())) {
+      event.preventDefault();
+      this.editing.set("");
+      this.settingsOpen.set(false);
+      this.panes?.find((pane) => pane.tab.id === this.active())?.focus();
+      return;
+    }
     if (!event.metaKey) {
       return;
     }

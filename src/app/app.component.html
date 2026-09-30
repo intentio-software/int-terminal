@@ -47,7 +47,13 @@
     }
 
     <button class="new" title="New tab (⌘T)" (click)="newTab()">+</button>
-    <button class="new" title="Preferences" (click)="togglePreferences($event)">⚙</button>
+    <button
+      class="new preferences-button"
+      title="Preferences"
+      (click)="togglePreferences($event)"
+    >
+      ⚙
+    </button>
     <!-- Whatever is left over after the tabs, so there is always somewhere to
          grab even when the strip is full. -->
     <span class="grab" data-tauri-drag-region></span>

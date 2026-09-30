@@ -89,6 +89,10 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
   private fit: FitAddon | null = null;
   private detach: (() => void) | null = null;
   private observer: ResizeObserver | null = null;
+  private pendingFit = 0;
+  /** The size the shell was last told, so it is not told again for nothing. */
+  private toldRows = 0;
+  private toldCols = 0;
 
   async ngAfterViewInit(): Promise<void> {
     const terminal = new Terminal({
@@ -153,6 +157,8 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
 
     // Spawned with the fitted size, never the default: the first thing a
     // shell does is draw a prompt, and it should draw it for this window.
+    this.toldRows = terminal.rows;
+    this.toldCols = terminal.cols;
     await this.shell.spawn(this.tab.id, this.tab.cwd, terminal.rows, terminal.cols);
 
     void this.shell.diagnostics({
@@ -177,23 +183,61 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.pendingFit) {
+      cancelAnimationFrame(this.pendingFit);
+    }
     this.observer?.disconnect();
     this.detach?.();
     this.terminal?.dispose();
   }
 
-  /** Re-measure and tell the shell. Called when shown, resized or zoomed. */
+  /**
+   * Re-measure and tell the shell. Called when shown, resized or zoomed.
+   *
+   * Dragging a window edge fires the observer on every pixel, but a terminal
+   * only changes shape every ten pixels or so - a cell is wider than that.
+   * Fitting is coalesced into the next frame, and the shell is only told when
+   * the row or column count has actually moved: every SIGWINCH makes whatever
+   * is running redraw itself, and a full-screen program redrawing sixty times
+   * a second while somebody drags a corner is the flicker people complain
+   * about.
+   */
   refit(): void {
-    if (!this.terminal || !this.fit) {
+    if (this.pendingFit) {
       return;
     }
-    // A hidden element measures as zero, and telling a shell it is 0x0 wrecks
-    // whatever is drawing in it.
-    if (!this.surface.nativeElement.offsetParent) {
+    this.pendingFit = requestAnimationFrame(() => {
+      this.pendingFit = 0;
+      this.fitNow();
+    });
+  }
+
+  private fitNow(): void {
+    const terminal = this.terminal;
+    if (!terminal || !this.fit) {
       return;
     }
+    // Zero means the pane is not on screen at all. Telling a shell it is 0x0
+    // wrecks whatever is drawing in it, so leave the last good size in place.
+    const element = this.surface.nativeElement;
+    if (!element.clientWidth || !element.clientHeight) {
+      return;
+    }
+
     this.fit.fit();
-    void this.shell.resize(this.tab.id, this.terminal.rows, this.terminal.cols);
+    if (terminal.rows === this.toldRows && terminal.cols === this.toldCols) {
+      return;
+    }
+    this.toldRows = terminal.rows;
+    this.toldCols = terminal.cols;
+    void this.shell.resize(this.tab.id, terminal.rows, terminal.cols);
+    void this.shell.diagnostics({
+      when: "after a resize",
+      renderer: "webgl",
+      rows: terminal.rows,
+      cols: terminal.cols,
+      surface: { width: element.clientWidth, height: element.clientHeight }
+    });
   }
 
   /** Put the cursor preferences on a terminal that already exists. */
@@ -215,7 +259,10 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
   setFontSize(size: number): void {
     if (this.terminal) {
       this.terminal.options.fontSize = size;
-      this.refit();
+      // Straight away rather than coalesced: the cell size changed, so what is
+      // on screen is wrong until this happens, and a frame of wrong text is
+      // more noticeable than a frame of late text.
+      this.fitNow();
     }
   }
 
