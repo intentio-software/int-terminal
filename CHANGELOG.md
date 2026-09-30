@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/intentio-software/int-terminal/compare/v1.0.0...v1.1.0) (2026-09-30)
+
+
+### Features
+
+* an About box, and updates that arrive ([1c01278](https://github.com/intentio-software/int-terminal/commit/1c01278d7beb864f79b031e216c4caad05361e77))
+
 # 1.0.0 (2026-09-30)
 
 
