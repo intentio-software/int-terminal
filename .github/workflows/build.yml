@@ -31,17 +31,18 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.rust-targets }}
 
-      # The Rust side is a cargo workspace rooted at the repo, not at src-tauri.
+      # A single crate under src-tauri, not a workspace at the root: there is no
+      # Cargo.toml above it to find.
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: .
+          workspaces: src-tauri
 
       - name: Install Linux system dependencies
         if: matrix.os == 'ubuntu-22.04'
@@ -163,7 +164,7 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Publish release
         shell: bash
