@@ -7,6 +7,7 @@ mod tabs;
 use std::sync::Arc;
 
 use tauri::{AppHandle, Manager, State};
+use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 pub struct AppState {
     sessions: Arc<pty::Sessions>,
@@ -101,6 +102,13 @@ fn save_session(session: tabs::Session) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Size, position and whether it was maximised, restored next time.
+        //
+        // The plugin rather than a few lines of our own, because the part that
+        // is easy to get wrong is not saving the numbers: it is a window that
+        // was on a second monitor which is no longer there, and would come back
+        // somewhere nobody can reach it.
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(AppState { sessions: Arc::new(pty::Sessions::default()) })
@@ -119,7 +127,24 @@ pub fn run() {
             save_session,
         ])
         .setup(|app| {
-            let _ = app.handle();
+            // Save the geometry as it changes, not only on a clean exit.
+            //
+            // The plugin writes on shutdown, which covers quitting properly and
+            // nothing else: a crash, a force quit, or a machine going down
+            // takes the layout with it. Writing on move and resize costs a few
+            // hundred bytes now and again and means the window comes back where
+            // it was however the app ended.
+            let handle = app.handle().clone();
+            if let Some(window) = app.get_webview_window("main") {
+                window.on_window_event(move |event| {
+                    if matches!(
+                        event,
+                        tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)
+                    ) {
+                        let _ = handle.save_window_state(StateFlags::all());
+                    }
+                });
+            }
             Ok(())
         })
         .run(tauri::generate_context!())
