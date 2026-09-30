@@ -73,6 +73,17 @@
   opacity: 0.55;
 }
 
+/* Lifted while it is being carried, so it is obvious which one is moving. */
+.tab.dragging {
+  background: var(--panel-raised);
+  color: var(--ink-strong);
+  cursor: grabbing;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  /* No transition while dragging: the neighbours should snap into their new
+     places, and animating them lags behind the cursor. */
+  transition: none;
+}
+
 .caption {
   flex: 1;
   overflow: hidden;
@@ -152,6 +163,59 @@
   background: var(--panel-raised);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
+.preferences {
+  min-width: 232px;
+}
+.row {
+  display: flex;
+  gap: 4px;
+}
+.pill {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.pill:hover {
+  background: var(--hover);
+}
+.pill.on {
+  border-color: var(--accent);
+  color: var(--ink-strong);
+  background: var(--selected);
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.preferences select {
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+.preferences select:focus {
+  border-color: var(--accent);
+}
+.hint {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
 .group {
   display: flex;
   flex-direction: column;

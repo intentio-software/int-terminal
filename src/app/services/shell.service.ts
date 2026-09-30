@@ -2,7 +2,7 @@ import { InjectionToken, Injectable, inject } from "@angular/core";
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-import { SavedSession, Tab } from "../models/tab";
+import { SavedSession, Tab, TerminalSettings } from "../models/tab";
 
 /**
  * How the app reaches Rust.
@@ -101,6 +101,18 @@ export class ShellService {
   /** A short caption for a directory, e.g. STM for stm-front-end. */
   async label(cwd: string): Promise<string> {
     return this.invoke<string>("directory_label", { cwd });
+  }
+
+  async settings(): Promise<TerminalSettings> {
+    return this.invoke<TerminalSettings>("terminal_settings");
+  }
+
+  async saveSettings(next: TerminalSettings): Promise<void> {
+    await this.invoke("set_terminal_settings", { next });
+  }
+
+  async shells(): Promise<string[]> {
+    return this.invoke<string[]>("shells");
   }
 
   async savedSession(): Promise<SavedSession> {

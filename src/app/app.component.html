@@ -5,14 +5,21 @@
   <!-- data-tauri-drag-region, not -webkit-app-region: the latter is an
        Electron property and does nothing in WKWebView, which is why the
        window could not be dragged at all. -->
-  <nav class="strip" data-tauri-drag-region (click)="editing.set(''); renaming.set('')">
+  <nav
+    class="strip"
+    data-tauri-drag-region
+    (click)="editing.set(''); renaming.set(''); settingsOpen.set(false)"
+  >
     @for (tab of tabs(); track tab.id) {
       <div
         class="tab"
         [class.on]="tab.id === active()"
         [style.--tab-colour]="tab.colour || null"
         [attr.data-coloured]="tab.colour ? 'true' : null"
-        (click)="select(tab.id)"
+        [class.dragging]="dragging() === tab.id"
+        (pointerdown)="onTabPointerDown(tab, $event)"
+        (pointermove)="onTabPointerMove($event)"
+        (pointerup)="onTabPointerUp(tab, $event)"
         (dblclick)="startRename(tab, $event)"
         [title]="tab.cwd"
       >
@@ -40,6 +47,7 @@
     }
 
     <button class="new" title="New tab (⌘T)" (click)="newTab()">+</button>
+    <button class="new" title="Preferences" (click)="togglePreferences($event)">⚙</button>
     <!-- Whatever is left over after the tabs, so there is always somewhere to
          grab even when the strip is full. -->
     <span class="grab" data-tauri-drag-region></span>
@@ -91,12 +99,88 @@
     }
   }
 
+  @if (settingsOpen() && settings(); as prefs) {
+    <div class="settings preferences" (click)="$event.stopPropagation()">
+      <div class="group">
+        <span class="label">Cursor</span>
+        <div class="row">
+          @for (style of cursorStyles; track style.value) {
+            <button
+              class="pill"
+              [class.on]="prefs.cursorStyle === style.value"
+              (click)="changeSettings({ cursorStyle: style.value })"
+            >
+              {{ style.name }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <label class="check">
+        <input
+          type="checkbox"
+          [checked]="prefs.cursorBlink"
+          (change)="changeSettings({ cursorBlink: $any($event.target).checked })"
+        />
+        <span>Blink</span>
+      </label>
+
+      <div class="group">
+        <span class="label">Cursor colour</span>
+        <div class="swatches">
+          @for (choice of colours; track choice.value) {
+            <button
+              class="swatch"
+              [class.none]="!choice.value"
+              [class.on]="prefs.cursorColour === choice.value"
+              [style.background]="choice.value || 'transparent'"
+              [title]="choice.value ? choice.name : 'Use the accent'"
+              (click)="changeSettings({ cursorColour: choice.value })"
+            ></button>
+          }
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="label">In a background tab</span>
+        <select
+          [ngModel]="prefs.cursorInactive"
+          (ngModelChange)="changeSettings({ cursorInactive: $event })"
+        >
+          <option [ngValue]="'outline'">Outline</option>
+          <option [ngValue]="'block'">Block</option>
+          <option [ngValue]="'bar'">Line</option>
+          <option [ngValue]="'underline'">Underline</option>
+          <option [ngValue]="'none'">Hidden</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <span class="label">Shell</span>
+        <select
+          [ngModel]="prefs.shell"
+          (ngModelChange)="changeSettings({ shell: $event })"
+        >
+          <option [ngValue]="''">Follow my login shell</option>
+          @for (option of shells(); track option) {
+            <option [ngValue]="option">{{ option }}</option>
+          }
+        </select>
+        <span class="hint">New tabs only. The ones already open keep their shell.</span>
+      </div>
+    </div>
+  }
+
   <main class="panes">
     @for (tab of tabs(); track tab.id) {
       <!-- Hidden, never unmounted: the shell keeps running and the screen it
            has drawn is not something we can rebuild. -->
       <div class="pane" [class.showing]="tab.id === active()">
-        <app-terminal-pane [tab]="tab" (exited)="onExited($event)"></app-terminal-pane>
+        <app-terminal-pane
+          [tab]="tab"
+          [settings]="settings()"
+          (exited)="onExited($event)"
+        ></app-terminal-pane>
       </div>
     }
   </main>

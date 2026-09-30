@@ -72,13 +72,9 @@ pub fn default_shell() -> String {
         .unwrap_or_else(|| "/bin/zsh".into())
 }
 
-/// A shell the person has chosen, from `~/.intentio/terminal.json`.
+/// A shell the person has chosen explicitly.
 fn configured_shell() -> Option<String> {
-    let home = std::env::var_os("HOME")?;
-    let path = std::path::PathBuf::from(home).join(".intentio").join("terminal.json");
-    let text = std::fs::read_to_string(path).ok()?;
-    let value: serde_json::Value = serde_json::from_str(&text).ok()?;
-    let shell = value.get("shell")?.as_str()?.trim().to_string();
+    let shell = crate::settings::read().shell.trim().to_string();
     (!shell.is_empty() && std::path::Path::new(&shell).exists()).then_some(shell)
 }
 
@@ -106,6 +102,30 @@ fn login_shell() -> Option<String> {
         .and_then(|line| line.rsplit(':').next())
         .map(str::to_string)
         .filter(|shell| std::path::Path::new(shell).exists())
+}
+
+/// Variables that name the session which launched us, rather than describing
+/// the machine.
+///
+/// A terminal opened from a shell, an editor or an agent inherits that
+/// parent's whole environment, session identity included. Passing it on makes
+/// every new tab claim to be part of a session it has nothing to do with:
+/// launching this app from inside a Claude Code session and then running
+/// Claude Code in a tab had it announce itself as a child session and stop
+/// saving transcripts.
+///
+/// A new tab is a new session. Only markers are removed, by prefix, so
+/// anything that genuinely describes the environment is left alone.
+pub fn inherited_session_markers_for_test() -> Vec<String> {
+    inherited_session_markers()
+}
+
+fn inherited_session_markers() -> Vec<String> {
+    const PREFIXES: [&str; 3] = ["CLAUDE_CODE_", "VSCODE_", "TERM_SESSION_"];
+    std::env::vars()
+        .map(|(name, _)| name)
+        .filter(|name| PREFIXES.iter().any(|prefix| name.starts_with(prefix)))
+        .collect()
 }
 
 fn home() -> String {
@@ -136,6 +156,10 @@ pub fn spawn<R: Runtime>(
         .filter(|path| std::path::Path::new(path).is_dir())
         .unwrap_or_else(home);
     command.cwd(&start_in);
+
+    for name in inherited_session_markers() {
+        command.env_remove(&name);
+    }
 
     // Programs decide what they can draw from this. Without it, anything
     // curses-based refuses to start.

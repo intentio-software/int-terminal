@@ -34,3 +34,18 @@ export const TAB_COLOURS = [
 
 /** A few emoji worth having to hand, rather than a full picker. */
 export const TAB_EMOJI = ["", "🔧", "🧪", "🚀", "🐛", "📦", "🗄️", "📝", "⚙️", "🔍", "🌱", "🔥"];
+
+/** Preferences that belong to the person, not to a tab. */
+export interface TerminalSettings {
+  shell: string;
+  cursorStyle: "block" | "bar" | "underline";
+  cursorBlink: boolean;
+  cursorColour: string;
+  cursorInactive: "outline" | "block" | "bar" | "underline" | "none";
+}
+
+export const CURSOR_STYLES: { value: TerminalSettings["cursorStyle"]; name: string }[] = [
+  { value: "block", name: "Block" },
+  { value: "bar", name: "Line" },
+  { value: "underline", name: "Underline" }
+];

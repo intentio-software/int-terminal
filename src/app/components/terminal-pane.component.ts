@@ -13,9 +13,10 @@ import {
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { WebglAddon } from "@xterm/addon-webgl";
 
 import { ShellService } from "../services/shell.service";
-import { Tab } from "../models/tab";
+import { Tab, TerminalSettings } from "../models/tab";
 
 /**
  * The terminal's colours, taken from the app's own palette.
@@ -67,12 +68,17 @@ function paletteTheme(): Record<string, string> {
 })
 export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
   @Input({ required: true }) tab!: Tab;
+  @Input() set settings(value: TerminalSettings | null) {
+    this.current = value;
+    this.applyCursor();
+  }
   /** Raised when the shell exits, so the tab can close itself. */
   @Output() readonly exited = new EventEmitter<string>();
 
   @ViewChild("surface", { static: true }) surface!: ElementRef<HTMLDivElement>;
 
   private readonly shell = inject(ShellService);
+  private current: TerminalSettings | null = null;
   private terminal: Terminal | null = null;
   private fit: FitAddon | null = null;
   private detach: (() => void) | null = null;
@@ -82,7 +88,9 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
     const terminal = new Terminal({
       fontFamily: '"SF Mono", Menlo, "JetBrains Mono", monospace',
       fontSize: this.tab.fontSize,
-      cursorBlink: true,
+      cursorBlink: this.current?.cursorBlink ?? true,
+      cursorStyle: this.current?.cursorStyle ?? "block",
+      cursorInactiveStyle: this.current?.cursorInactive ?? "outline",
       // Enough to scroll back through a build, not enough to hoard memory.
       scrollback: 10_000,
       macOptionIsMeta: true,
@@ -93,10 +101,28 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
     terminal.loadAddon(fit);
     terminal.loadAddon(new WebLinksAddon());
     terminal.open(this.surface.nativeElement);
+
+    // Without a renderer addon xterm falls back to drawing rows as DOM nodes,
+    // which leaves ghosts: text struck through by lines that belong to rows
+    // that were supposed to have been cleared. The GPU renderer draws the
+    // whole screen each frame and has nothing to leave behind.
+    //
+    // It can fail - a lost context, a machine with no usable GPU - and losing
+    // the renderer must not lose the terminal, so the DOM path stays as the
+    // fallback it was always meant to be.
+    try {
+      const webgl = new WebglAddon();
+      webgl.onContextLoss(() => webgl.dispose());
+      terminal.loadAddon(webgl);
+    } catch {
+      // Left on the DOM renderer, which is slower but still works.
+    }
+
     fit.fit();
 
     this.terminal = terminal;
     this.fit = fit;
+    this.applyCursor();
 
     terminal.onData((data) => void this.shell.write(this.tab.id, data));
 
@@ -129,6 +155,22 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
     }
     this.fit.fit();
     void this.shell.resize(this.tab.id, this.terminal.rows, this.terminal.cols);
+  }
+
+  /** Put the cursor preferences on a terminal that already exists. */
+  private applyCursor(): void {
+    const terminal = this.terminal;
+    const settings = this.current;
+    if (!terminal || !settings) {
+      return;
+    }
+    terminal.options.cursorBlink = settings.cursorBlink;
+    terminal.options.cursorStyle = settings.cursorStyle;
+    terminal.options.cursorInactiveStyle = settings.cursorInactive;
+    terminal.options.theme = {
+      ...paletteTheme(),
+      ...(settings.cursorColour ? { cursor: settings.cursorColour } : {})
+    };
   }
 
   setFontSize(size: number): void {

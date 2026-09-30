@@ -12,7 +12,7 @@ import { FormsModule } from "@angular/forms";
 
 import { TerminalPaneComponent } from "./components/terminal-pane.component";
 import { ShellService } from "./services/shell.service";
-import { SavedSession, TAB_COLOURS, TAB_EMOJI, Tab } from "./models/tab";
+import { CURSOR_STYLES, SavedSession, TAB_COLOURS, TAB_EMOJI, Tab, TerminalSettings } from "./models/tab";
 
 /** Size steps, so zoom lands on values that render crisply. */
 const SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24];
@@ -39,8 +39,27 @@ export class AppComponent implements OnInit {
 
   readonly colours = TAB_COLOURS;
   readonly emoji = TAB_EMOJI;
+  readonly cursorStyles = CURSOR_STYLES;
+
+  /** Preferences, and whether their panel is showing. */
+  readonly settings = signal<TerminalSettings | null>(null);
+  readonly settingsOpen = signal(false);
+  readonly shells = signal<string[]>([]);
+
+  /** The tab being dragged, and how far it has moved. */
+  readonly dragging = signal<string>("");
+  private dragFrom = 0;
+  private dragStartX = 0;
+  private moved = false;
 
   async ngOnInit(): Promise<void> {
+    try {
+      this.settings.set(await this.shell.settings());
+      this.shells.set(await this.shell.shells());
+    } catch {
+      // Outside Tauri there are no preferences to read, and the app should
+      // still come up.
+    }
     const saved = await this.restore();
     if (!saved) {
       await this.newTab();
@@ -130,6 +149,101 @@ export class AppComponent implements OnInit {
   /** The shell ended by itself, so the tab goes with it. */
   onExited(id: string): void {
     void this.closeTab(id);
+  }
+
+  // ----------------------------------------------------------- preferences
+
+  togglePreferences(event: Event): void {
+    event.stopPropagation();
+    this.settingsOpen.set(!this.settingsOpen());
+    this.editing.set("");
+  }
+
+  /**
+   * Change a preference and apply it at once.
+   *
+   * The cursor is the thing you are looking at while you change it, so a
+   * setting that took effect in the next tab would be hard to judge.
+   */
+  async changeSettings(change: Partial<TerminalSettings>): Promise<void> {
+    const next = { ...(this.settings() as TerminalSettings), ...change };
+    this.settings.set(next);
+    await this.shell.saveSettings(next);
+  }
+
+  // ------------------------------------------------------------ reordering
+
+  /**
+   * Drag a tab along the strip.
+   *
+   * Pointer events rather than HTML5 drag-and-drop: the strip is also the
+   * window's drag region, and a native drag inside it would have the operating
+   * system trying to move the window at the same time. Pointer capture keeps
+   * every move coming here until the button is released, even when the cursor
+   * leaves the strip.
+   *
+   * Order changes as you pass each neighbour rather than on drop, so the strip
+   * shows what will happen instead of asking you to imagine it.
+   */
+  onTabPointerDown(tab: Tab, event: PointerEvent): void {
+    // Only the primary button, and never from the buttons on the tab.
+    if (event.button !== 0 || (event.target as HTMLElement).closest("button, input")) {
+      return;
+    }
+    this.dragFrom = this.tabs().findIndex((t) => t.id === tab.id);
+    this.dragStartX = event.clientX;
+    this.moved = false;
+    this.dragging.set(tab.id);
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  onTabPointerMove(event: PointerEvent): void {
+    const id = this.dragging();
+    if (!id) {
+      return;
+    }
+    // A few pixels of slop, so a click with a shaky hand is still a click.
+    if (!this.moved && Math.abs(event.clientX - this.dragStartX) < 5) {
+      return;
+    }
+    this.moved = true;
+
+    const strip = (event.currentTarget as HTMLElement).parentElement;
+    if (!strip) {
+      return;
+    }
+    const elements = Array.from(strip.querySelectorAll<HTMLElement>(".tab"));
+    // The tab whose middle the cursor has passed is the one to swap with.
+    const target = elements.findIndex((element) => {
+      const box = element.getBoundingClientRect();
+      return event.clientX < box.left + box.width / 2;
+    });
+    const to = target === -1 ? elements.length - 1 : target;
+    const from = this.tabs().findIndex((tab) => tab.id === id);
+    if (to === from || to < 0) {
+      return;
+    }
+    this.tabs.update((tabs) => {
+      const next = [...tabs];
+      const [moving] = next.splice(from, 1);
+      next.splice(to, 0, moving);
+      return next;
+    });
+  }
+
+  onTabPointerUp(tab: Tab, event: PointerEvent): void {
+    const wasDragging = this.dragging();
+    (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+    this.dragging.set("");
+    if (!wasDragging) {
+      return;
+    }
+    if (this.moved) {
+      // It was a drag, not a click, so do not also switch tabs.
+      void this.persist();
+      return;
+    }
+    this.select(tab.id);
   }
 
   // ---------------------------------------------------------------- captions

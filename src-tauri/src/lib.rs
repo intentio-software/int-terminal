@@ -1,6 +1,7 @@
 //! Intentio Terminal.
 
 pub mod pty;
+mod settings;
 mod tabs;
 
 use std::sync::Arc;
@@ -51,6 +52,27 @@ fn directory_label(cwd: String) -> String {
 }
 
 #[tauri::command]
+fn terminal_settings() -> settings::Settings {
+    settings::read()
+}
+
+#[tauri::command]
+fn set_terminal_settings(next: settings::Settings) -> Result<(), String> {
+    settings::write(&next).map_err(|err| err.to_string())
+}
+
+/// Shells on this machine, plus the one currently in use.
+#[tauri::command]
+fn shells() -> Vec<String> {
+    let mut found = settings::available_shells();
+    let current = pty::default_shell();
+    if !found.contains(&current) {
+        found.insert(0, current);
+    }
+    found
+}
+
+#[tauri::command]
 fn saved_session() -> tabs::Session {
     tabs::read()
 }
@@ -73,6 +95,9 @@ pub fn run() {
             close_shell,
             shell_cwd,
             directory_label,
+            terminal_settings,
+            set_terminal_settings,
+            shells,
             saved_session,
             save_session,
         ])
