@@ -152,7 +152,10 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
 
     terminal.onData((data) => void this.shell.write(this.tab.id, data));
 
-    this.detach = this.shell.onOutput(this.tab.id, (data) => terminal.write(data));
+    // Written as bytes, not a string. xterm carries UTF-8 decoding state
+    // across writes, so a character split by a read boundary survives - which
+    // is the whole reason the shell's output arrives here as bytes.
+    this.detach = this.shell.onOutput(this.tab.id, (bytes) => terminal.write(bytes));
     this.shell.onExit(this.tab.id, () => this.exited.emit(this.tab.id));
 
     // Spawned with the fitted size, never the default: the first thing a
@@ -163,6 +166,8 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
 
     void this.shell.diagnostics({
       when: "after fit and spawn",
+      theme: paletteTheme(),
+      rawSurface: getComputedStyle(document.body).getPropertyValue("--surface"),
       renderer,
       rendererError,
       devicePixelRatio: window.devicePixelRatio,

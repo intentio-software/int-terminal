@@ -29,8 +29,20 @@ pub const EXIT_EVENT: &str = "pty-exit";
 #[serde(rename_all = "camelCase")]
 pub struct Output {
     pub id: String,
-    /// Bytes as text. Invalid UTF-8 is replaced rather than dropped: a corrupt
-    /// glyph is a better outcome than a missing line.
+    /// The bytes exactly as the program wrote them, base64 for the trip
+    /// through a JSON event.
+    ///
+    /// Bytes, not text. Decoding each chunk here as UTF-8 looks harmless and
+    /// is not: a read ends wherever the kernel decides, so a three-byte
+    /// character or an escape sequence is routinely cut in half, and decoding
+    /// the halves separately turns both into replacement characters. A broken
+    /// escape sequence is the expensive half - the terminal keeps reading the
+    /// rest of the line as part of a command that never ended, and the output
+    /// after it lands in the wrong place.
+    ///
+    /// xterm decodes the stream with state carried across writes, which is
+    /// exactly what a stream needs and what this cannot do one chunk at a
+    /// time.
     pub data: String,
 }
 
@@ -200,7 +212,9 @@ pub fn spawn<R: Runtime>(
             match reader.read(&mut buffer) {
                 Ok(0) => break,
                 Ok(read) => {
-                    let data = String::from_utf8_lossy(&buffer[..read]).to_string();
+                    use base64::Engine;
+                    let data = base64::engine::general_purpose::STANDARD
+                        .encode(&buffer[..read]);
                     let _ = reader_app.emit(
                         OUTPUT_EVENT,
                         Output { id: reader_id.clone(), data },

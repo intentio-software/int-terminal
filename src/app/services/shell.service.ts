@@ -18,7 +18,18 @@ export const INVOKE = new InjectionToken<typeof tauriInvoke>("invoke", {
 
 interface Chunk {
   id: string;
+  /** Base64, because a JSON event cannot carry bytes. */
   data: string;
+}
+
+/** Base64 back to the bytes the program actually wrote. */
+function decode(data: string): Uint8Array {
+  const binary = atob(data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 }
 
 /**
@@ -33,7 +44,7 @@ interface Chunk {
 export class ShellService {
   private readonly invoke = inject(INVOKE);
 
-  private readonly writers = new Map<string, (data: string) => void>();
+  private readonly writers = new Map<string, (bytes: Uint8Array) => void>();
   private readonly closers = new Map<string, () => void>();
   private listening = false;
 
@@ -44,7 +55,10 @@ export class ShellService {
     this.listening = true;
     try {
       await listen<Chunk>("pty-output", (event) => {
-        this.writers.get(event.payload.id)?.(event.payload.data);
+        const write = this.writers.get(event.payload.id);
+        if (write) {
+          write(decode(event.payload.data));
+        }
       });
       await listen<string>("pty-exit", (event) => {
         this.closers.get(event.payload)?.();
@@ -56,7 +70,7 @@ export class ShellService {
     }
   }
 
-  onOutput(id: string, write: (data: string) => void): () => void {
+  onOutput(id: string, write: (bytes: Uint8Array) => void): () => void {
     void this.listenOnce();
     this.writers.set(id, write);
     return () => this.writers.delete(id);
