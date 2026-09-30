@@ -58,7 +58,7 @@ import { UpdaterService } from "../services/updater.service";
           <img src="assets/intentio-logo.png" alt="Intentio logo" class="about-logo" />
           <div class="about-title-group">
             <h2 id="aboutDialogTitle">Intentio Terminal</h2>
-            <p>A terminal that remembers what you were doing.</p>
+            <p>Tabs that remember where you were.</p>
             <div class="about-version">
               <span>{{ version() }}</span>
               <button

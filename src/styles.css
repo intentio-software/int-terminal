@@ -86,6 +86,12 @@ body {
    in Tasks. The terminal chrome wants 13, so body carries that instead. */
 body {
   font: 13px var(--font-body);
+  /* As Tasks and Mind Map do. Nobody here has Inter installed, so every one of
+     these apps falls back to the system face - and without antialiasing that
+     face renders visibly heavier on a dark ground, which is what made this one
+     look like a different font rather than the same one. */
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 app-root {
