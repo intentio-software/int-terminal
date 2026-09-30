@@ -2,6 +2,7 @@
 
 pub mod pty;
 mod settings;
+pub mod ssh;
 mod tabs;
 
 use std::sync::Arc;
@@ -89,6 +90,12 @@ fn shells() -> Vec<String> {
     found
 }
 
+/// Hosts from the ssh config and known_hosts, for the picker.
+#[tauri::command]
+fn ssh_hosts() -> Vec<ssh::Host> {
+    ssh::hosts()
+}
+
 #[tauri::command]
 fn saved_session() -> tabs::Session {
     tabs::read()
@@ -123,6 +130,7 @@ pub fn run() {
             terminal_settings,
             set_terminal_settings,
             shells,
+            ssh_hosts,
             saved_session,
             save_session,
         ])

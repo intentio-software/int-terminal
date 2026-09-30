@@ -35,7 +35,6 @@
             (keydown.enter)="commitRename(tab.id)"
             (keydown.escape)="renaming.set('')"
             (blur)="commitRename(tab.id)"
-            autofocus
           />
         } @else {
           <span class="caption">{{ caption(tab) }}</span>
@@ -47,6 +46,7 @@
     }
 
     <button class="new" title="New tab (⌘T)" (click)="newTab()">+</button>
+    <button class="new" title="Connect to a host (⌘K)" (click)="pickerOpen.set(true)">⇢</button>
     <button
       class="new preferences-button"
       title="Preferences"
@@ -175,6 +175,14 @@
         <span class="hint">New tabs only. The ones already open keep their shell.</span>
       </div>
     </div>
+  }
+
+  @if (pickerOpen()) {
+    <app-host-picker
+      [hosts]="hosts()"
+      (chosen)="connect($event)"
+      (cancelled)="pickerOpen.set(false)"
+    ></app-host-picker>
   }
 
   <main class="panes">

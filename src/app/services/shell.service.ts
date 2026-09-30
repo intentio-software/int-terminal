@@ -2,7 +2,7 @@ import { InjectionToken, Injectable, inject } from "@angular/core";
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-import { SavedSession, Tab, TerminalSettings } from "../models/tab";
+import { SavedSession, SshHost, Tab, TerminalSettings } from "../models/tab";
 
 /**
  * How the app reaches Rust.
@@ -118,6 +118,12 @@ export class ShellService {
 
   async saveSettings(next: TerminalSettings): Promise<void> {
     await this.invoke("set_terminal_settings", { next });
+  }
+
+  /** Machines from the ssh config and known_hosts. Names only; no keys are
+   *  read, here or anywhere. */
+  async sshHosts(): Promise<SshHost[]> {
+    return this.invoke<SshHost[]>("ssh_hosts");
   }
 
   async shells(): Promise<string[]> {

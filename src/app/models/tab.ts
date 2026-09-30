@@ -49,3 +49,15 @@ export const CURSOR_STYLES: { value: TerminalSettings["cursorStyle"]; name: stri
   { value: "bar", name: "Line" },
   { value: "underline", name: "Underline" }
 ];
+
+/** A machine from ~/.ssh/config or ~/.ssh/known_hosts. */
+export interface SshHost {
+  alias: string;
+  hostname?: string;
+  user?: string;
+  port?: string;
+  /** `config` for one you defined, `known` for one you have merely visited. */
+  source: "config" | "known";
+  /** The name suggests production. A warning, never a restriction. */
+  looksLive: boolean;
+}

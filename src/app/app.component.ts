@@ -10,9 +10,10 @@ import {
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 
+import { HostPickerComponent } from "./components/host-picker.component";
 import { TerminalPaneComponent } from "./components/terminal-pane.component";
 import { ShellService } from "./services/shell.service";
-import { CURSOR_STYLES, SavedSession, TAB_COLOURS, TAB_EMOJI, Tab, TerminalSettings } from "./models/tab";
+import { CURSOR_STYLES, SavedSession, SshHost, TAB_COLOURS, TAB_EMOJI, Tab, TerminalSettings } from "./models/tab";
 
 /** Size steps, so zoom lands on values that render crisply. */
 const SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24];
@@ -20,7 +21,7 @@ const SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24];
 @Component({
   selector: "app-root",
   standalone: true,
-  imports: [CommonModule, FormsModule, TerminalPaneComponent],
+  imports: [CommonModule, FormsModule, HostPickerComponent, TerminalPaneComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./app.component.html",
   styleUrl: "./app.component.css"
@@ -45,6 +46,8 @@ export class AppComponent implements OnInit {
   readonly settings = signal<TerminalSettings | null>(null);
   readonly settingsOpen = signal(false);
   readonly shells = signal<string[]>([]);
+  readonly hosts = signal<SshHost[]>([]);
+  readonly pickerOpen = signal(false);
 
   /** The tab being dragged, and how far it has moved. */
   readonly dragging = signal<string>("");
@@ -56,6 +59,7 @@ export class AppComponent implements OnInit {
     try {
       this.settings.set(await this.shell.settings());
       this.shells.set(await this.shell.shells());
+      this.hosts.set(await this.shell.sshHosts());
     } catch {
       // Outside Tauri there are no preferences to read, and the app should
       // still come up.
@@ -167,8 +171,10 @@ export class AppComponent implements OnInit {
     }
     const target = event.target as HTMLElement | null;
     // The button that opened it counts as inside, or the click that closes it
-    // would be followed by the toggle reopening it.
-    if (target?.closest(".settings, .cog, .preferences-button")) {
+    // would be followed by the toggle reopening it. So does the rename field:
+    // clicking into the box you are typing in is not a click away from it,
+    // and treating it as one closed the field the moment it was reached.
+    if (target?.closest(".settings, .cog, .preferences-button, .rename")) {
       return;
     }
     this.editing.set("");
@@ -176,6 +182,35 @@ export class AppComponent implements OnInit {
     if (this.renaming()) {
       this.commitRename(this.renaming());
     }
+  }
+
+  // ------------------------------------------------------------------ ssh
+
+  /**
+   * Open a machine in a new tab.
+   *
+   * The command is typed into a shell rather than run in place of one, so
+   * disconnecting leaves you at a prompt instead of closing the tab. A
+   * connection that drops at the wrong moment should not also take away the
+   * scrollback showing why.
+   */
+  async connect(host: SshHost): Promise<void> {
+    this.pickerOpen.set(false);
+    await this.newTab();
+    const id = this.active();
+    this.update(id, (tab) => ({
+      ...tab,
+      name: host.alias,
+      // Production is marked, not blocked. Knowing which window is the live
+      // one is the thing that prevents the mistake.
+      colour: host.looksLive ? "#c0483c" : tab.colour,
+      emoji: host.looksLive ? "🔥" : tab.emoji
+    }));
+
+    // Wait for the shell to exist before typing at it.
+    await new Promise((resolve) => setTimeout(resolve, 260));
+    await this.shell.write(id, `ssh ${host.alias}\n`);
+    void this.persist();
   }
 
   // ----------------------------------------------------------- preferences
@@ -218,8 +253,11 @@ export class AppComponent implements OnInit {
       return;
     }
     // Stop the browser treating this as the start of a text selection, which
-    // is what left captions highlighted after every tab switch.
-    event.preventDefault();
+    // is what left captions highlighted after every tab switch. Not while
+    // renaming: preventing the default there stops the caret being placed.
+    if (!(event.target as HTMLElement).closest(".rename")) {
+      event.preventDefault();
+    }
     this.dragFrom = this.tabs().findIndex((t) => t.id === tab.id);
     this.dragStartX = event.clientX;
     this.moved = false;
@@ -304,6 +342,13 @@ export class AppComponent implements OnInit {
     this.renameDraft = tab.name || this.caption(tab);
     this.renaming.set(tab.id);
     this.editing.set("");
+    // autofocus only applies to markup present when the page loads, so an
+    // input that appears on a double-click has to be told.
+    queueMicrotask(() => {
+      const field = document.querySelector<HTMLInputElement>(".rename");
+      field?.focus();
+      field?.select();
+    });
   }
 
   commitRename(id: string): void {
@@ -353,10 +398,11 @@ export class AppComponent implements OnInit {
 
   private onKey(event: KeyboardEvent): void {
     // Escape closes whatever is open, before any of the shortcuts.
-    if (event.key === "Escape" && (this.editing() || this.settingsOpen())) {
+    if (event.key === "Escape" && (this.editing() || this.settingsOpen() || this.pickerOpen())) {
       event.preventDefault();
       this.editing.set("");
       this.settingsOpen.set(false);
+      this.pickerOpen.set(false);
       this.panes?.find((pane) => pane.tab.id === this.active())?.focus();
       return;
     }
@@ -382,6 +428,9 @@ export class AppComponent implements OnInit {
     } else if (event.key === "[" && event.shiftKey) {
       event.preventDefault();
       this.step(-1);
+    } else if (event.key === "k") {
+      event.preventDefault();
+      this.pickerOpen.set(true);
     } else if (/^[1-9]$/.test(event.key)) {
       // Cmd+9 is the last tab, as it is everywhere else on macOS.
       event.preventDefault();
