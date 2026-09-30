@@ -10,9 +10,11 @@ import {
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 
+import { AboutDialogComponent } from "./components/about-dialog.component";
 import { HostPickerComponent } from "./components/host-picker.component";
 import { TerminalPaneComponent } from "./components/terminal-pane.component";
 import { ShellService } from "./services/shell.service";
+import { UpdaterService } from "./services/updater.service";
 import { CURSOR_STYLES, SavedSession, SshHost, TAB_COLOURS, TAB_EMOJI, Tab, TerminalSettings } from "./models/tab";
 
 /** Size steps, so zoom lands on values that render crisply. */
@@ -21,13 +23,20 @@ const SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24];
 @Component({
   selector: "app-root",
   standalone: true,
-  imports: [CommonModule, FormsModule, HostPickerComponent, TerminalPaneComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    AboutDialogComponent,
+    HostPickerComponent,
+    TerminalPaneComponent
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./app.component.html",
   styleUrl: "./app.component.css"
 })
 export class AppComponent implements OnInit {
   private readonly shell = inject(ShellService);
+  readonly updater = inject(UpdaterService);
 
   @ViewChildren(TerminalPaneComponent) panes!: QueryList<TerminalPaneComponent>;
 
@@ -48,6 +57,7 @@ export class AppComponent implements OnInit {
   readonly shells = signal<string[]>([]);
   readonly hosts = signal<SshHost[]>([]);
   readonly pickerOpen = signal(false);
+  readonly aboutOpen = signal(false);
 
   /** The tab being dragged, and how far it has moved. */
   readonly dragging = signal<string>("");
@@ -64,6 +74,10 @@ export class AppComponent implements OnInit {
       // Outside Tauri there are no preferences to read, and the app should
       // still come up.
     }
+    // A few seconds in, so opening the app is not held up by the network and
+    // the first thing you see is a prompt.
+    setTimeout(() => void this.updater.checkQuietly(), 4000);
+
     const saved = await this.restore();
     if (!saved) {
       await this.newTab();

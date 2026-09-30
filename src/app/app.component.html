@@ -174,6 +174,24 @@
         </select>
         <span class="hint">New tabs only. The ones already open keep their shell.</span>
       </div>
+
+      <button type="button" class="about-link" (click)="aboutOpen.set(true); settingsOpen.set(false)">
+        About Intentio Terminal
+      </button>
+    </div>
+  }
+
+  @if (aboutOpen()) {
+    <app-about-dialog (closed)="aboutOpen.set(false)"></app-about-dialog>
+  }
+
+  @if (updater.notice(); as notice) {
+    <div class="notice" [class.bad]="notice.state === 'failed'">
+      <span class="notice-text">{{ notice.message }}</span>
+      @if (notice.state === 'found') {
+        <button type="button" class="notice-do" (click)="updater.install()">Update and restart</button>
+      }
+      <button type="button" class="notice-x" (click)="updater.dismiss()">×</button>
     </div>
   }
 
