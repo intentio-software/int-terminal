@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/intentio-software/int-terminal/compare/v1.2.0...v1.3.0) (2026-10-19)
+
+
+### Features
+
+* reach every tab, and more ways to tell them apart ([bb848d9](https://github.com/intentio-software/int-terminal/commit/bb848d90a8ed8beda1d2b570331702ac87b876b8))
+
 # [1.2.0](https://github.com/intentio-software/int-terminal/compare/v1.1.0...v1.2.0) (2026-09-30)
 
 
