@@ -35,10 +35,17 @@
         (pointermove)="onTabPointerMove($event)"
         (pointerup)="onTabPointerUp(tab, $event)"
         (dblclick)="startRename(tab, $event)"
-        [title]="tab.cwd"
+        [title]="activityTitle(tab)"
+        [attr.data-activity]="activityOf(tab)"
       >
         @if (tab.emoji) {
           <span class="emoji">{{ tab.emoji }}</span>
+        }
+
+        <!-- Only on tabs you are not looking at. You can see what the one in
+             front is doing. -->
+        @if (activityOf(tab) !== 'idle') {
+          <span class="pulse" [class.waiting]="activityOf(tab) === 'waiting'"></span>
         }
 
         @if (renaming() === tab.id) {

@@ -2,7 +2,7 @@ import { InjectionToken, Injectable, inject } from "@angular/core";
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-import { SavedSession, SshHost, Tab, TerminalSettings } from "../models/tab";
+import { SavedSession, SshHost, Tab, TabActivity, TerminalSettings } from "../models/tab";
 
 /**
  * How the app reaches Rust.
@@ -110,6 +110,11 @@ export class ShellService {
   /** Where a tab is working now. Null when the shell has gone. */
   async cwd(id: string): Promise<string | null> {
     return (await this.invoke<string | null>("shell_cwd", { id })) ?? null;
+  }
+
+  /** What each tab is doing. */
+  async activity(): Promise<TabActivity[]> {
+    return (await this.invoke<TabActivity[]>("tab_activity")) ?? [];
   }
 
   /** A short caption for a directory, e.g. STM for stm-front-end. */

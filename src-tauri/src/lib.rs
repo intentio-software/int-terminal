@@ -10,6 +10,14 @@ use std::sync::Arc;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
+/// Milliseconds since the epoch.
+pub fn now_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
 pub struct AppState {
     sessions: Arc<pty::Sessions>,
 }
@@ -39,6 +47,13 @@ fn resize_shell(state: State<'_, AppState>, id: String, rows: u16, cols: u16) ->
 #[tauri::command]
 fn close_shell(state: State<'_, AppState>, id: String) {
     pty::close(&state.sessions, &id);
+}
+
+/// What every tab is doing: at a prompt, running something, or running
+/// something that has gone quiet.
+#[tauri::command]
+fn tab_activity(state: State<'_, AppState>) -> Vec<pty::TabActivity> {
+    pty::activity(&state.sessions)
 }
 
 /// Where a tab is working now, for its caption and for restoring it.
@@ -127,6 +142,7 @@ pub fn run() {
             resize_shell,
             close_shell,
             shell_cwd,
+            tab_activity,
             directory_label,
             record_diagnostics,
             terminal_settings,

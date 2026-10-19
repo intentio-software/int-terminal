@@ -91,3 +91,13 @@ export interface SshHost {
   /** The name suggests production. A warning, never a restriction. */
   looksLive: boolean;
 }
+
+/** What a tab is doing, as the kernel sees it. */
+export type Activity = "idle" | "working" | "waiting";
+
+export interface TabActivity {
+  id: string;
+  activity: Activity;
+  /** Seconds since the tab last said anything. */
+  quietFor: number;
+}

@@ -21,6 +21,7 @@ import { ShellService } from "./services/shell.service";
 import { UpdaterService } from "./services/updater.service";
 import { CURSOR_STYLES, SavedSession, SshHost, TAB_COLOURS, TAB_EMOJI, Tab, TerminalSettings } from "./models/tab";
 import { quotePaths } from "./models/shell-quote";
+import { Activity, TabActivity } from "./models/tab";
 
 /** Size steps, so zoom lands on values that render crisply. */
 const SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24];
@@ -104,6 +105,8 @@ export class AppComponent implements OnInit {
   /** Whether there are tabs past the left or right edge of the strip. */
   readonly moreLeft = signal(false);
   readonly moreRight = signal(false);
+  /** What each tab is doing, keyed by tab id. */
+  readonly activity = signal<Record<string, TabActivity>>({});
 
   /** The tab being dragged, and how far it has moved. */
   readonly dragging = signal<string>("");
@@ -131,6 +134,14 @@ export class AppComponent implements OnInit {
     window.addEventListener("keydown", (event) => this.onKey(event));
     void this.acceptDroppedFiles();
     queueMicrotask(() => this.watchStrip());
+
+    // Asked for rather than pushed. A tab changes state when a process starts
+    // or stops, which the app cannot be told about without watching every
+    // process on the machine - so it looks, often enough to be useful and
+    // rarely enough to cost nothing. Two seconds is below the ten a tab must
+    // be quiet before it counts as waiting, so no change is ever missed.
+    setInterval(() => void this.refreshActivity(), 2000);
+    void this.refreshActivity();
 
     // Dismiss on a click anywhere else.
     //
@@ -444,6 +455,41 @@ export class AppComponent implements OnInit {
     const next = { ...(this.settings() as TerminalSettings), ...change };
     this.settings.set(next);
     await this.shell.saveSettings(next);
+  }
+
+  private async refreshActivity(): Promise<void> {
+    try {
+      const all = await this.shell.activity();
+      const byId: Record<string, TabActivity> = {};
+      for (const one of all) {
+        byId[one.id] = one;
+      }
+      this.activity.set(byId);
+    } catch {
+      // Nothing to report is better than a wrong report.
+    }
+  }
+
+  /** What a tab is doing, for its dot. */
+  activityOf(tab: Tab): Activity {
+    // The tab you are looking at needs no dot: you can see what it is doing.
+    if (tab.id === this.active()) {
+      return "idle";
+    }
+    return this.activity()[tab.id]?.activity ?? "idle";
+  }
+
+  activityTitle(tab: Tab): string {
+    const state = this.activity()[tab.id];
+    if (!state || tab.id === this.active()) {
+      return tab.cwd;
+    }
+    if (state.activity === "waiting") {
+      const minutes = Math.floor(state.quietFor / 60);
+      const quiet = minutes ? `${minutes}m` : `${state.quietFor}s`;
+      return `Waiting - nothing for ${quiet}`;
+    }
+    return state.activity === "working" ? "Working" : tab.cwd;
   }
 
   // ------------------------------------------------------------ reordering

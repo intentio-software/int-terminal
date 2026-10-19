@@ -157,6 +157,41 @@
   transition: none;
 }
 
+/* A dot for a tab that is doing something.
+ *
+ * Two states, not three. Working is the quiet one: a dim dot that says the
+ * tab is busy and does not want you. Waiting is the loud one: it wants an
+ * answer, so it takes the accent colour and breathes. The difference is the
+ * whole point - with six agents running, the question is never "which are
+ * busy" but "which one is stuck on me". */
+.pulse {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+}
+.pulse.waiting {
+  background: var(--accent);
+  animation: pulseBreath 1.8s ease-in-out infinite;
+}
+@keyframes pulseBreath {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  50% {
+    opacity: 0.55;
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse.waiting {
+    animation: none;
+  }
+}
+
 .caption {
   flex: 1;
   overflow: hidden;

@@ -59,7 +59,38 @@ struct Session {
     master: Box<dyn portable_pty::MasterPty + Send>,
     /// Kept so a tab can be closed without waiting for the shell to notice.
     child: Box<dyn portable_pty::Child + Send + Sync>,
+    /// When this tab last produced any output, in milliseconds.
+    last_output: Arc<Mutex<u64>>,
 }
+
+/// What a tab appears to be doing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Activity {
+    /// Sitting at a shell prompt with nothing running.
+    Idle,
+    /// Something is running and still producing output.
+    Working,
+    /// Something is running and has gone quiet. Usually it wants an answer.
+    Waiting,
+}
+
+/// What each tab is doing, for the strip.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TabActivity {
+    pub id: String,
+    pub activity: Activity,
+    /// Seconds since this tab last said anything.
+    pub quiet_for: u64,
+}
+
+/// How long a running program may be silent before it is taken to be waiting.
+///
+/// Long enough that a compile reading from disk, or a request waiting on a
+/// slow server, is not mistaken for a question. Short enough to be useful
+/// while you are deciding which window to look at.
+const QUIET_BEFORE_WAITING: u64 = 10;
 
 #[derive(Default)]
 pub struct Sessions {
@@ -196,9 +227,10 @@ pub fn spawn<R: Runtime>(
         .take_writer()
         .map_err(|err| format!("could not write to the pty: {err}"))?;
 
+    let last_output = Arc::new(Mutex::new(crate::now_millis()));
     sessions.open.lock().expect("sessions").insert(
         id.clone(),
-        Session { writer, master: pair.master, child },
+        Session { writer, master: pair.master, child, last_output: last_output.clone() },
     );
 
     let reader_id = id.clone();
@@ -212,6 +244,9 @@ pub fn spawn<R: Runtime>(
             match reader.read(&mut buffer) {
                 Ok(0) => break,
                 Ok(read) => {
+                    if let Ok(mut at) = last_output.lock() {
+                        *at = crate::now_millis();
+                    }
                     use base64::Engine;
                     let data = base64::engine::general_purpose::STANDARD
                         .encode(&buffer[..read]);
@@ -228,6 +263,93 @@ pub fn spawn<R: Runtime>(
     });
 
     Ok(Spawned { id, shell, cwd: start_in })
+}
+
+/// A shell with no app around it, for checking the activity rules.
+pub fn spawn_for_test(sessions: Arc<Sessions>, id: String) {
+    let system = NativePtySystem::default();
+    let pair = system
+        .openpty(PtySize { rows: 24, cols: 80, pixel_width: 0, pixel_height: 0 })
+        .expect("pty");
+    let mut command = CommandBuilder::new(default_shell());
+    command.arg("-l");
+    command.cwd(home());
+    command.env("TERM", "xterm-256color");
+    let child = pair.slave.spawn_command(command).expect("shell");
+    drop(pair.slave);
+
+    let mut reader = pair.master.try_clone_reader().expect("reader");
+    let writer = pair.master.take_writer().expect("writer");
+    let last_output = Arc::new(Mutex::new(crate::now_millis()));
+    let seen = last_output.clone();
+    sessions.open.lock().expect("sessions").insert(
+        id,
+        Session { writer, master: pair.master, child, last_output },
+    );
+    std::thread::spawn(move || {
+        let mut buffer = [0u8; 8192];
+        while let Ok(read) = reader.read(&mut buffer) {
+            if read == 0 {
+                break;
+            }
+            if let Ok(mut at) = seen.lock() {
+                *at = crate::now_millis();
+            }
+        }
+    });
+}
+
+/// What every tab is doing.
+///
+/// Read from the kernel rather than scraped from the screen. A terminal always
+/// knows which process group owns its input: if that is the shell itself,
+/// nothing is running and the tab is at a prompt. If it is anything else, a
+/// program has the terminal, and whether it is working or waiting is the
+/// difference between still talking and having gone quiet.
+///
+/// Doing it this way means it works for anything - a compile, a migration, an
+/// agent - rather than only for programs whose output we have learnt to
+/// recognise. Reading the screen would have to be taught every prompt in the
+/// world and would still be wrong about the next one.
+pub fn activity(sessions: &Sessions) -> Vec<TabActivity> {
+    let now = crate::now_millis();
+    let open = sessions.open.lock().expect("sessions");
+
+    open.iter()
+        .map(|(id, session)| {
+            let quiet_ms = session
+                .last_output
+                .lock()
+                .map(|at| now.saturating_sub(*at))
+                .unwrap_or(0);
+            let quiet_for = quiet_ms / 1000;
+
+            let activity = match foreground_is_the_shell(session) {
+                // The shell owns the terminal: nothing is running.
+                Some(true) => Activity::Idle,
+                Some(false) if quiet_for >= QUIET_BEFORE_WAITING => Activity::Waiting,
+                Some(false) => Activity::Working,
+                // Nothing to go on. Idle is the quiet answer, and a tab wrongly
+                // marked as wanting attention is worse than one left unmarked.
+                None => Activity::Idle,
+            };
+
+            TabActivity { id: id.clone(), activity, quiet_for }
+        })
+        .collect()
+}
+
+/// Whether the shell itself owns the terminal's input.
+#[cfg(unix)]
+fn foreground_is_the_shell(session: &Session) -> Option<bool> {
+    let shell = session.child.process_id()? as i32;
+    let foreground = session.master.process_group_leader()?;
+    Some(foreground == shell)
+}
+
+#[cfg(not(unix))]
+fn foreground_is_the_shell(_session: &Session) -> Option<bool> {
+    None
 }
 
 /// Send typed input to a shell.
