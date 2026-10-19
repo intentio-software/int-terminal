@@ -130,6 +130,7 @@ export class AppComponent implements OnInit {
     }
     window.addEventListener("keydown", (event) => this.onKey(event));
     void this.acceptDroppedFiles();
+    queueMicrotask(() => this.watchStrip());
 
     // Dismiss on a click anywhere else.
     //
@@ -209,6 +210,37 @@ export class AppComponent implements OnInit {
    */
   onStripScroll(event: Event): void {
     this.measureStrip(event.target as HTMLElement);
+  }
+
+  /**
+   * Watch the strip so the arrows are right before anybody touches it.
+   *
+   * Measuring only on scroll was useless: until you had already scrolled,
+   * nothing said there was anywhere to scroll to. The strip changes width when
+   * the window does and changes content when a tab opens or closes, so both
+   * have to be watched.
+   */
+  private watchStrip(): void {
+    const strip = document.querySelector<HTMLElement>(".strip");
+    if (!strip) {
+      return;
+    }
+    this.measureStrip(strip);
+    const observer = new ResizeObserver(() => this.measureStrip(strip));
+    observer.observe(strip);
+    // Children changing is what happens when a tab is opened or closed.
+    new MutationObserver(() => this.measureStrip(strip)).observe(strip, { childList: true });
+  }
+
+  /** Step the strip along by most of a screenful. */
+  scrollStrip(direction: 1 | -1): void {
+    const strip = document.querySelector<HTMLElement>(".strip");
+    if (!strip) {
+      return;
+    }
+    // Not a whole screenful: leaving a tab or two in common between before and
+    // after is what stops a jump feeling like losing your place.
+    strip.scrollBy({ left: direction * (strip.clientWidth - 120), behavior: "smooth" });
   }
 
   onStripWheel(event: WheelEvent): void {

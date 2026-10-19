@@ -5,6 +5,15 @@
   <!-- data-tauri-drag-region, not -webkit-app-region: the latter is an
        Electron property and does nothing in WKWebView, which is why the
        window could not be dragged at all. -->
+  <!-- Only once there is somewhere to go. An arrow that does nothing is worse
+       than no arrow: it invites a click and then ignores it. -->
+  @if (moreLeft()) {
+    <button class="strip-arrow left" title="Earlier tabs" (click)="scrollStrip(-1)">‹</button>
+  }
+  @if (moreRight()) {
+    <button class="strip-arrow right" title="Later tabs" (click)="scrollStrip(1)">›</button>
+  }
+
   <nav
     class="strip"
     [class.more-left]="moreLeft()"

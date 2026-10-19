@@ -44,12 +44,43 @@
   background: var(--ink-faint);
 }
 
+/* Something to click.
+ *
+ * macOS draws overlay scrollbars, which means a scrollbar is invisible until
+ * you are already scrolling - no use at all for telling somebody there is more
+ * to see. These sit over the ends of the strip and only exist when they would
+ * do something. */
+.strip-arrow {
+  position: absolute;
+  top: 0;
+  z-index: 6;
+  width: 22px;
+  height: 40px;
+  border: none;
+  background: var(--panel);
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.strip-arrow:hover {
+  color: var(--accent);
+}
+.strip-arrow.left {
+  left: 84px; /* clear of the traffic lights */
+  box-shadow: 6px 0 8px -4px rgba(0, 0, 0, 0.5);
+}
+.strip-arrow.right {
+  right: 0;
+  box-shadow: -6px 0 8px -4px rgba(0, 0, 0, 0.5);
+}
+
 /* Faded at whichever end has more tabs behind it, so the strip says which way
    to look. The classes are set from the component, because CSS cannot ask
    whether an element is scrolled. */
 .strip.more-left {
-  mask-image: linear-gradient(to right, transparent 0, #000 28px);
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px);
+  mask-image: linear-gradient(to right, transparent 84px, #000 112px);
+  -webkit-mask-image: linear-gradient(to right, transparent 84px, #000 112px);
 }
 .strip.more-right {
   mask-image: linear-gradient(to left, transparent 0, #000 28px);
@@ -71,7 +102,12 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 104px;
+  /* Shrink before scrolling, as a browser does, but not past the point where
+     the name stops being a name. 72px fitted twelve tabs and showed "ta…" on
+     every one of them, which is twelve tabs you cannot tell apart - worse
+     than scrolling. At 92px a designator reads in full and a longer name
+     still gives you its first several characters. */
+  min-width: 92px;
   max-width: 210px;
   padding: 0 6px 0 11px;
   border-radius: 7px 7px 0 0;
@@ -143,6 +179,19 @@
   color: var(--ink-strong);
   font: inherit;
   outline: none;
+}
+
+/* The settings button takes no room until it is wanted. It was invisible but
+   still in the layout, costing every tab twenty pixels of name for a button
+   nobody could see. */
+.tab .cog {
+  width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.tab:hover .cog {
+  width: auto;
+  padding: 2px 4px;
 }
 
 .tab .cog,
