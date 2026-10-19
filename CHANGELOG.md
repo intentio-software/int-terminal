@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/intentio-software/int-terminal/compare/v1.4.0...v1.5.0) (2026-10-19)
+
+
+### Features
+
+* keep sessions running, and let an agent see which one is stuck ([e600cb8](https://github.com/intentio-software/int-terminal/commit/e600cb82acc496a681b374f2eb13fc35a832cc4e))
+
 # [1.4.0](https://github.com/intentio-software/int-terminal/compare/v1.3.1...v1.4.0) (2026-10-19)
 
 
