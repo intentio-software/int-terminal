@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/intentio-software/int-terminal/compare/v1.3.0...v1.3.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* make the tab strip actually reachable ([1f271ff](https://github.com/intentio-software/int-terminal/commit/1f271ff50f6a73fd35fc9ddc75de6d559ece9f6f))
+
 # [1.3.0](https://github.com/intentio-software/int-terminal/compare/v1.2.0...v1.3.0) (2026-10-19)
 
 
