@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/intentio-software/int-terminal/compare/v1.3.1...v1.4.0) (2026-10-19)
+
+
+### Features
+
+* a tab tells you when it wants you ([1e1091f](https://github.com/intentio-software/int-terminal/commit/1e1091f7e573b224981c5b75a12dd1530bf543db))
+
 ## [1.3.1](https://github.com/intentio-software/int-terminal/compare/v1.3.0...v1.3.1) (2026-10-19)
 
 
