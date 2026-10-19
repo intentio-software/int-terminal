@@ -24,16 +24,46 @@ export interface SavedSession {
  */
 export const TAB_COLOURS = [
   { name: "None", value: "" },
+
   { name: "Ember", value: "#e8643c" },
+  { name: "Rust", value: "#c4552f" },
+  { name: "Clay", value: "#a8705b" },
   { name: "Amber", value: "#d9a441" },
+  { name: "Ochre", value: "#b8862b" },
+
   { name: "Moss", value: "#5f9463" },
+  { name: "Sage", value: "#7fa389" },
+  { name: "Teal", value: "#3f8f8a" },
   { name: "Steel", value: "#5b8aa6" },
+  { name: "Indigo", value: "#4f6bab" },
+
   { name: "Plum", value: "#8a6ea8" },
-  { name: "Clay", value: "#a8705b" }
+  { name: "Mauve", value: "#a0729a" },
+  { name: "Rose", value: "#b56576" },
+  { name: "Slate", value: "#6b7a8d" },
+  { name: "Stone", value: "#8a8578" }
 ];
 
-/** A few emoji worth having to hand, rather than a full picker. */
-export const TAB_EMOJI = ["", "🔧", "🧪", "🚀", "🐛", "📦", "🗄️", "📝", "⚙️", "🔍", "🌱", "🔥"];
+/**
+ * Marks for a tab, grouped the way somebody reaches for them.
+ *
+ * Kept to a list rather than a full picker. A system emoji picker offers
+ * several thousand, which is worse than useless for labelling eight tabs:
+ * what makes a strip readable is a handful of marks you recognise instantly,
+ * and a long hunt for the perfect one is time spent not working.
+ */
+export const TAB_EMOJI = [
+  "",
+  // What the tab is for
+  "🔧", "🧪", "🐛", "🚀", "📦", "🗄️", "📝", "⚙️", "🔍", "🧹", "📐", "🎨",
+  // Where it is pointed
+  "🏠", "☁️", "🔌", "🖥️", "🌐", "🔒", "🗃️", "📡",
+  // How it is going
+  "🔥", "⚡", "🌱", "✅", "⏳", "⚠️", "💤", "👀",
+  // Whose it is
+  "🦀", "🐍", "🟦", "🐳", "🍎", "🧩", "☕", "🧠"
+];
+
 
 /** Preferences that belong to the person, not to a tab. */
 export interface TerminalSettings {

@@ -7,6 +7,10 @@
        window could not be dragged at all. -->
   <nav
     class="strip"
+    [class.more-left]="moreLeft()"
+    [class.more-right]="moreRight()"
+    (scroll)="onStripScroll($event)"
+    (wheel)="onStripWheel($event)"
     data-tauri-drag-region
     (click)="editing.set(''); renaming.set(''); settingsOpen.set(false)"
   >
@@ -17,6 +21,7 @@
         [style.--tab-colour]="tab.colour || null"
         [attr.data-coloured]="tab.colour ? 'true' : null"
         [class.dragging]="dragging() === tab.id"
+        [attr.data-tab]="tab.id"
         (pointerdown)="onTabPointerDown(tab, $event)"
         (pointermove)="onTabPointerMove($event)"
         (pointerup)="onTabPointerUp(tab, $event)"
@@ -46,6 +51,7 @@
     }
 
     <button class="new" title="New tab (⌘T)" (click)="newTab()">+</button>
+    <button class="new" title="Keyboard shortcuts (⌘/)" (click)="shortcutsOpen.set(true)">?</button>
     <button class="new" title="Connect to a host (⌘K)" (click)="pickerOpen.set(true)">⇢</button>
     <button
       class="new preferences-button"
@@ -80,7 +86,7 @@
 
         <div class="group">
           <span class="label">Mark</span>
-          <div class="swatches">
+          <div class="swatches marks">
             @for (choice of emoji; track choice) {
               <button
                 class="glyph"
@@ -179,6 +185,13 @@
         About Intentio Terminal
       </button>
     </div>
+  }
+
+  @if (shortcutsOpen()) {
+    <app-shortcuts-dialog
+      [groups]="shortcutGroups"
+      (closed)="shortcutsOpen.set(false)"
+    ></app-shortcuts-dialog>
   }
 
   @if (aboutOpen()) {

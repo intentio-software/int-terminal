@@ -23,10 +23,41 @@
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
-  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  /* A slim scrollbar rather than none. Hiding it entirely left no sign that
+     there were tabs past the edge, which is exactly the thing somebody needs
+     to know once there are more tabs than fit. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 .strip::-webkit-scrollbar {
-  display: none;
+  height: 3px;
+}
+.strip::-webkit-scrollbar-track {
+  background: transparent;
+}
+.strip::-webkit-scrollbar-thumb {
+  border-radius: 2px;
+  background: var(--border);
+}
+.strip:hover::-webkit-scrollbar-thumb {
+  background: var(--ink-faint);
+}
+
+/* Faded at whichever end has more tabs behind it, so the strip says which way
+   to look. The classes are set from the component, because CSS cannot ask
+   whether an element is scrolled. */
+.strip.more-left {
+  mask-image: linear-gradient(to right, transparent 0, #000 28px);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px);
+}
+.strip.more-right {
+  mask-image: linear-gradient(to left, transparent 0, #000 28px);
+  -webkit-mask-image: linear-gradient(to left, transparent 0, #000 28px);
+}
+.strip.more-left.more-right {
+  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
 }
 
 /* Fills whatever the tabs leave, so there is always somewhere to grab. */
@@ -239,10 +270,20 @@
   color: var(--ink-muted);
 }
 .swatches {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  /* A grid rather than a wrap, so the rows line up and the eye can scan down
+     a column. Eight across fits the popover without it becoming a window. */
+  grid-template-columns: repeat(8, 1fr);
   gap: 5px;
-  max-width: 196px;
+  width: 212px;
+}
+/* The marks are wider than the swatches, so they get their own count. */
+.swatches.marks {
+  grid-template-columns: repeat(7, 1fr);
+  max-height: 150px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 .swatch {
   width: 19px;

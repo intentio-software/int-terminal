@@ -11,6 +11,10 @@ import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 
 import { AboutDialogComponent } from "./components/about-dialog.component";
+import {
+  ShortcutGroup,
+  ShortcutsDialogComponent
+} from "./components/shortcuts-dialog.component";
 import { HostPickerComponent } from "./components/host-picker.component";
 import { TerminalPaneComponent } from "./components/terminal-pane.component";
 import { ShellService } from "./services/shell.service";
@@ -28,6 +32,7 @@ const SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24];
     CommonModule,
     FormsModule,
     AboutDialogComponent,
+    ShortcutsDialogComponent,
     HostPickerComponent,
     TerminalPaneComponent
   ],
@@ -59,6 +64,46 @@ export class AppComponent implements OnInit {
   readonly hosts = signal<SshHost[]>([]);
   readonly pickerOpen = signal(false);
   readonly aboutOpen = signal(false);
+  readonly shortcutsOpen = signal(false);
+
+  /**
+   * What the keyboard does.
+   *
+   * Everything here is in-app: a terminal has no menu bar of its own to list
+   * these in, so without this dialog the only way to find them is to have
+   * been told.
+   */
+  readonly shortcutGroups: ShortcutGroup[] = [
+    {
+      title: "Tabs",
+      shortcuts: [
+        { keys: "⌘T", does: "New tab, in the same folder as this one" },
+        { keys: "⌘W", does: "Close the current tab" },
+        { keys: "⌘1 – ⌘9", does: "Jump to a tab. ⌘9 is always the last" },
+        { keys: "⌘⇧[ ⌘⇧]", does: "Previous or next tab, wrapping round" },
+        { keys: "Drag a tab", does: "Reorder it" },
+        { keys: "Double click", does: "Rename a tab" }
+      ]
+    },
+    {
+      title: "This tab",
+      shortcuts: [
+        { keys: "⌘+ ⌘−", does: "Text size, for this tab alone" },
+        { keys: "⌘K", does: "Connect to a host from your ssh config" },
+        { keys: "Drop a file", does: "Type its path at the prompt" }
+      ]
+    },
+    {
+      title: "Panels",
+      shortcuts: [
+        { keys: "Escape", does: "Close whatever is open" },
+        { keys: "Click away", does: "The same" }
+      ]
+    }
+  ];
+  /** Whether there are tabs past the left or right edge of the strip. */
+  readonly moreLeft = signal(false);
+  readonly moreRight = signal(false);
 
   /** The tab being dragged, and how far it has moved. */
   readonly dragging = signal<string>("");
@@ -147,10 +192,73 @@ export class AppComponent implements OnInit {
       }
     ]);
     this.active.set(id);
+    // A new tab goes on the end, which is off-screen once the strip is full.
+    queueMicrotask(() => this.revealTab(id));
+  }
+
+  /**
+   * Keep the strip usable once there are more tabs than fit.
+   *
+   * Three things, none of which a strip does on its own. It reports which end
+   * has tabs behind it, so the fade can say which way to look. It turns a
+   * vertical wheel into horizontal movement, because a mouse has no sideways
+   * and a strip is the one place people expect that to work anyway. And it
+   * brings the current tab into view, which matters most for the keyboard:
+   * jumping to tab nine with Cmd+9 and landing on something you cannot see is
+   * worse than not jumping at all.
+   */
+  onStripScroll(event: Event): void {
+    this.measureStrip(event.target as HTMLElement);
+  }
+
+  onStripWheel(event: WheelEvent): void {
+    const strip = event.currentTarget as HTMLElement;
+    if (strip.scrollWidth <= strip.clientWidth) {
+      return;
+    }
+    // A trackpad already sends deltaX; only stand in for a wheel that cannot.
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+      return;
+    }
+    event.preventDefault();
+    strip.scrollLeft += event.deltaY;
+  }
+
+  private measureStrip(strip: HTMLElement | null): void {
+    if (!strip) {
+      return;
+    }
+    const end = strip.scrollWidth - strip.clientWidth;
+    this.moreLeft.set(strip.scrollLeft > 1);
+    // A pixel of slack: sub-pixel layout means scrollLeft rarely reaches the
+    // end exactly, and a fade that never quite goes away looks broken.
+    this.moreRight.set(strip.scrollLeft < end - 1);
+  }
+
+  private revealTab(id: string): void {
+    const strip = document.querySelector<HTMLElement>(".strip");
+    const tab = document.querySelector<HTMLElement>(`[data-tab="${id}"]`);
+    if (!strip || !tab) {
+      return;
+    }
+    const left = tab.offsetLeft;
+    const right = left + tab.offsetWidth;
+    const viewLeft = strip.scrollLeft;
+    const viewRight = viewLeft + strip.clientWidth;
+    // The left inset holds the traffic lights, so a tab scrolled flush left is
+    // still half under them.
+    const inset = 92;
+    if (left - inset < viewLeft) {
+      strip.scrollTo({ left: Math.max(0, left - inset), behavior: "smooth" });
+    } else if (right > viewRight) {
+      strip.scrollTo({ left: right - strip.clientWidth + 12, behavior: "smooth" });
+    }
+    this.measureStrip(strip);
   }
 
   select(id: string): void {
     this.active.set(id);
+    queueMicrotask(() => this.revealTab(id));
     // A pane that was hidden measured as zero, so it has to re-measure before
     // it is usable.
     queueMicrotask(() => {
@@ -471,11 +579,15 @@ export class AppComponent implements OnInit {
 
   private onKey(event: KeyboardEvent): void {
     // Escape closes whatever is open, before any of the shortcuts.
-    if (event.key === "Escape" && (this.editing() || this.settingsOpen() || this.pickerOpen())) {
+    if (
+      event.key === "Escape" &&
+      (this.editing() || this.settingsOpen() || this.pickerOpen() || this.shortcutsOpen())
+    ) {
       event.preventDefault();
       this.editing.set("");
       this.settingsOpen.set(false);
       this.pickerOpen.set(false);
+      this.shortcutsOpen.set(false);
       this.panes?.find((pane) => pane.tab.id === this.active())?.focus();
       return;
     }
@@ -501,6 +613,9 @@ export class AppComponent implements OnInit {
     } else if (event.key === "[" && event.shiftKey) {
       event.preventDefault();
       this.step(-1);
+    } else if (event.key === "/") {
+      event.preventDefault();
+      this.shortcutsOpen.set(true);
     } else if (event.key === "k") {
       event.preventDefault();
       this.pickerOpen.set(true);
