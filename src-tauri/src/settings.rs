@@ -29,6 +29,14 @@ pub struct Settings {
     /// `outline` still shows where you were.
     #[serde(default = "default_inactive")]
     pub cursor_inactive: String,
+    /// Keep shells running when the app closes, by hosting them in tmux.
+    ///
+    /// Off by default. It needs tmux installed, and it puts tmux between you
+    /// and your shell - its key bindings, its idea of a window - which is a
+    /// real change to how the terminal behaves and not one to make for
+    /// somebody without asking.
+    #[serde(default)]
+    pub persist_sessions: bool,
 }
 
 fn default_cursor_style() -> String {
@@ -51,6 +59,7 @@ impl Default for Settings {
             cursor_blink: true,
             cursor_colour: String::new(),
             cursor_inactive: default_inactive(),
+            persist_sessions: false,
         }
     }
 }
@@ -74,6 +83,20 @@ pub fn write(settings: &Settings) -> std::io::Result<()> {
     }
     let json = serde_json::to_string_pretty(settings).unwrap_or_default();
     std::fs::write(p, format!("{json}\n"))
+}
+
+/// Whether tmux is available to host sessions.
+pub fn tmux_path() -> Option<String> {
+    for candidate in ["/opt/homebrew/bin/tmux", "/usr/local/bin/tmux", "/usr/bin/tmux"] {
+        if std::path::Path::new(candidate).is_file() {
+            return Some(candidate.to_string());
+        }
+    }
+    // Fall back to whatever is on PATH, which is not much of a fallback for a
+    // GUI app launched from Finder but costs nothing to try.
+    let out = std::process::Command::new("which").arg("tmux").output().ok()?;
+    let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    (!path.is_empty()).then_some(path)
 }
 
 /// Shells worth offering, that actually exist on this machine.
@@ -101,6 +124,12 @@ mod tests {
         assert!(settings.cursor_blink);
         // Empty means "follow the account", not "no shell".
         assert!(settings.shell.is_empty());
+    }
+
+    #[test]
+    fn persistence_is_off_unless_asked_for() {
+        let settings: Settings = serde_json::from_str("{}").expect("settings");
+        assert!(!settings.persist_sessions, "it changes how the terminal behaves");
     }
 
     #[test]

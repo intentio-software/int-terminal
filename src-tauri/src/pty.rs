@@ -175,6 +175,56 @@ fn home() -> String {
     std::env::var("HOME").unwrap_or_else(|_| "/".into())
 }
 
+/// What a tab actually runs, and the shell behind it.
+///
+/// One function rather than one per caller, because a test that builds its own
+/// command is a test of something other than the app. This exact mistake cost
+/// a probe that reported persistence was broken when it had simply never been
+/// switched on for the shell the probe started.
+pub fn build_command(id: &str, cwd: Option<String>) -> (CommandBuilder, String) {
+    let shell = default_shell();
+    let persist = crate::settings::read().persist_sessions;
+    let tmux = persist.then(crate::settings::tmux_path).flatten();
+    let start_in = cwd
+        .filter(|path| std::path::Path::new(path).is_dir())
+        .unwrap_or_else(home);
+
+    let mut command = match &tmux {
+        // Named after the tab, so reopening the app finds the same session.
+        // -A attaches if it exists and creates it if it does not, which is the
+        // "resume or start" we want without having to ask which case this is.
+        Some(tmux) => {
+            let mut command = CommandBuilder::new(tmux);
+            command.arg("-u"); // the shell talks UTF-8; so should tmux
+            command.arg("new-session");
+            command.arg("-A");
+            command.arg("-s");
+            command.arg(format!("int-{id}"));
+            command.arg("-c");
+            command.arg(&start_in);
+            command
+        }
+        None => {
+            let mut command = CommandBuilder::new(&shell);
+            // A login shell, so profiles run and the environment matches what
+            // somebody gets opening a terminal anywhere else. zsh, bash and
+            // fish all take -l.
+            command.arg("-l");
+            command
+        }
+    };
+    command.cwd(&start_in);
+
+    for name in inherited_session_markers() {
+        command.env_remove(&name);
+    }
+    command.env("TERM", "xterm-256color");
+    command.env("COLORTERM", "truecolor");
+    command.env("TERM_PROGRAM", "Intentio Terminal");
+
+    (command, start_in)
+}
+
 /// Start a shell and begin pumping its output.
 pub fn spawn<R: Runtime>(
     app: AppHandle<R>,
@@ -189,26 +239,11 @@ pub fn spawn<R: Runtime>(
         .openpty(PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
         .map_err(|err| format!("could not open a pty: {err}"))?;
 
+    let (command, start_in) = build_command(&id, cwd.clone());
     let shell = default_shell();
-    let mut command = CommandBuilder::new(&shell);
-    // A login shell, so profiles run and the environment matches what somebody
-    // gets opening a terminal anywhere else. zsh, bash and fish all take -l.
-    command.arg("-l");
 
-    let start_in = cwd
-        .filter(|path| std::path::Path::new(path).is_dir())
-        .unwrap_or_else(home);
-    command.cwd(&start_in);
 
-    for name in inherited_session_markers() {
-        command.env_remove(&name);
-    }
 
-    // Programs decide what they can draw from this. Without it, anything
-    // curses-based refuses to start.
-    command.env("TERM", "xterm-256color");
-    command.env("COLORTERM", "truecolor");
-    command.env("TERM_PROGRAM", "Intentio Terminal");
 
     let child = pair
         .slave
@@ -271,10 +306,7 @@ pub fn spawn_for_test(sessions: Arc<Sessions>, id: String) {
     let pair = system
         .openpty(PtySize { rows: 24, cols: 80, pixel_width: 0, pixel_height: 0 })
         .expect("pty");
-    let mut command = CommandBuilder::new(default_shell());
-    command.arg("-l");
-    command.cwd(home());
-    command.env("TERM", "xterm-256color");
+    let (command, _) = build_command(&id, None);
     let child = pair.slave.spawn_command(command).expect("shell");
     drop(pair.slave);
 

@@ -197,6 +197,22 @@
         <span class="hint">New tabs only. The ones already open keep their shell.</span>
       </div>
 
+      <div class="group">
+        <label class="check">
+          <input
+            type="checkbox"
+            [checked]="prefs.persistSessions"
+            (change)="changeSettings({ persistSessions: $any($event.target).checked })"
+          />
+          <span>Keep sessions running when I quit</span>
+        </label>
+        <span class="hint">
+          Hosts each tab in tmux, so what you were running survives closing the app and you can
+          reattach from any terminal. Needs tmux installed, and puts its key bindings between you
+          and your shell. New tabs only.
+        </span>
+      </div>
+
       <button type="button" class="about-link" (click)="aboutOpen.set(true); settingsOpen.set(false)">
         About Intentio Terminal
       </button>

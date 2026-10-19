@@ -53,7 +53,23 @@ fn close_shell(state: State<'_, AppState>, id: String) {
 /// something that has gone quiet.
 #[tauri::command]
 fn tab_activity(state: State<'_, AppState>) -> Vec<pty::TabActivity> {
-    pty::activity(&state.sessions)
+    let activity = pty::activity(&state.sessions);
+    // Also put it where the MCP server can see it. The app is the only thing
+    // that knows this - it comes from reading our own ptys - so an agent
+    // asking which session is stuck has nowhere else to look.
+    if let Some(home) = std::env::var_os("HOME") {
+        let path = std::path::PathBuf::from(home).join(".intentio").join("terminal-activity.json");
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        if let Ok(json) = serde_json::to_string_pretty(&serde_json::json!({
+            "at": now_millis(),
+            "tabs": activity,
+        })) {
+            let _ = std::fs::write(path, json);
+        }
+    }
+    activity
 }
 
 /// Where a tab is working now, for its caption and for restoring it.

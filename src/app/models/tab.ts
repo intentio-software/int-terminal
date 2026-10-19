@@ -72,6 +72,8 @@ export interface TerminalSettings {
   cursorBlink: boolean;
   cursorColour: string;
   cursorInactive: "outline" | "block" | "bar" | "underline" | "none";
+  /** Keep shells running when the app closes, by hosting them in tmux. */
+  persistSessions: boolean;
 }
 
 export const CURSOR_STYLES: { value: TerminalSettings["cursorStyle"]; name: string }[] = [
