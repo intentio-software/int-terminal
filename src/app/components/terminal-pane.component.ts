@@ -78,6 +78,19 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
     this.current = value;
     this.applyCursor();
   }
+  /**
+   * Whether this pane is the one on screen.
+   *
+   * The GPU renderer follows it. Panes are hidden rather than unmounted, so
+   * without this every background tab keeps a live WebGL context, and a
+   * browser engine only grants about sixteen before it starts destroying the
+   * oldest to make room - which, with a dozen tabs open, is the one you are
+   * looking at. A tab you cannot see has nothing to draw.
+   */
+  @Input() set showing(value: boolean) {
+    this.visible = value;
+    this.syncRenderer();
+  }
   /** Raised when the shell exits, so the tab can close itself. */
   @Output() readonly exited = new EventEmitter<string>();
 
@@ -87,6 +100,10 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
   private current: TerminalSettings | null = null;
   private terminal: Terminal | null = null;
   private fit: FitAddon | null = null;
+  private webgl: WebglAddon | null = null;
+  private visible = false;
+  private renderer = "dom";
+  private rendererError = "";
   private detach: (() => void) | null = null;
   private observer: ResizeObserver | null = null;
   private pendingFit = 0;
@@ -112,31 +129,10 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
     terminal.loadAddon(new WebLinksAddon());
     terminal.open(this.surface.nativeElement);
 
-    // Without a renderer addon xterm falls back to drawing rows as DOM nodes,
-    // which leaves ghosts: text struck through by lines that belong to rows
-    // that were supposed to have been cleared. The GPU renderer draws the
-    // whole screen each frame and has nothing to leave behind.
-    //
-    // It can fail - a lost context, a machine with no usable GPU - and losing
-    // the renderer must not lose the terminal, so the DOM path stays as the
-    // fallback it was always meant to be.
-    let renderer = "dom";
-    let rendererError = "";
-    try {
-      const webgl = new WebglAddon();
-      webgl.onContextLoss(() => webgl.dispose());
-      terminal.loadAddon(webgl);
-      renderer = "webgl";
-    } catch (error) {
-      // Left on the DOM renderer, which is slower but still works. Recorded
-      // rather than swallowed: a renderer that quietly refused to load is
-      // exactly the kind of thing that wastes an afternoon.
-      rendererError = String(error);
-    }
-
     this.terminal = terminal;
     this.fit = fit;
     this.applyCursor();
+    this.syncRenderer();
 
     // Measure only once the element has a size.
     //
@@ -168,8 +164,8 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
       when: "after fit and spawn",
       theme: paletteTheme(),
       rawSurface: getComputedStyle(document.body).getPropertyValue("--surface"),
-      renderer,
-      rendererError,
+      renderer: this.renderer,
+      rendererError: this.rendererError,
       devicePixelRatio: window.devicePixelRatio,
       rows: terminal.rows,
       cols: terminal.cols,
@@ -193,6 +189,7 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
     }
     this.observer?.disconnect();
     this.detach?.();
+    this.webgl?.dispose();
     this.terminal?.dispose();
   }
 
@@ -207,6 +204,64 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
    * a second while somebody drags a corner is the flicker people complain
    * about.
    */
+  /**
+   * Give the GPU renderer to the visible pane and take it back from the rest.
+   *
+   * Without a renderer addon xterm draws rows as DOM nodes, which is slower
+   * but correct - so a backgrounded tab is left on it rather than holding a
+   * context it is not using. Contexts are the scarce thing: a browser engine
+   * grants a handful per page and destroys the oldest when it runs out, and
+   * the oldest is usually the tab that has been open longest, not the one
+   * least needed.
+   */
+  private syncRenderer(): void {
+    const terminal = this.terminal;
+    if (!terminal) {
+      // Built in ngAfterViewInit, which calls this again once there is one.
+      return;
+    }
+    if (this.visible && !this.webgl) {
+      try {
+        const webgl = new WebglAddon();
+        // A context can still be lost - the GPU resets, the machine sleeps.
+        // Losing the renderer must not lose the terminal, so the DOM path
+        // stays as the fallback it was always meant to be.
+        webgl.onContextLoss(() => this.dropRenderer("context lost"));
+        terminal.loadAddon(webgl);
+        this.webgl = webgl;
+        this.renderer = "webgl";
+        this.rendererError = "";
+        // The new renderer starts with an empty frame. Repaint what is on
+        // screen now rather than waiting for the shell to say something,
+        // which on an idle tab could be a long time to look at nothing.
+        terminal.refresh(0, terminal.rows - 1);
+      } catch (error) {
+        // Recorded rather than swallowed: a renderer that quietly refused to
+        // load is exactly the kind of thing that wastes an afternoon.
+        this.renderer = "dom";
+        this.rendererError = String(error);
+        void this.shell.diagnostics({
+          when: "webgl renderer refused to load",
+          tab: this.tab.id,
+          error: this.rendererError
+        });
+      }
+    } else if (!this.visible && this.webgl) {
+      this.dropRenderer("hidden");
+    }
+  }
+
+  private dropRenderer(why: string): void {
+    this.webgl?.dispose();
+    this.webgl = null;
+    this.renderer = "dom";
+    if (why !== "hidden") {
+      // Worth a record: a lost context is invisible from the outside and is
+      // the kind of thing that only ever gets reported as "it looked wrong".
+      void this.shell.diagnostics({ when: "webgl " + why, tab: this.tab.id });
+    }
+  }
+
   refit(): void {
     if (this.pendingFit) {
       return;
@@ -238,7 +293,7 @@ export class TerminalPaneComponent implements AfterViewInit, OnDestroy {
     void this.shell.resize(this.tab.id, terminal.rows, terminal.cols);
     void this.shell.diagnostics({
       when: "after a resize",
-      renderer: "webgl",
+      renderer: this.renderer,
       rows: terminal.rows,
       cols: terminal.cols,
       surface: { width: element.clientWidth, height: element.clientHeight }

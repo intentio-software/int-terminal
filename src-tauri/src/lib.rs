@@ -93,11 +93,34 @@ fn directory_label(cwd: String) -> String {
 #[tauri::command]
 fn record_diagnostics(report: serde_json::Value) {
     let Some(home) = std::env::var_os("HOME") else { return };
-    let path = std::path::PathBuf::from(home).join(".intentio").join("terminal-diagnostics.json");
-    if let Some(dir) = path.parent() {
-        let _ = std::fs::create_dir_all(dir);
+    let dir = std::path::PathBuf::from(home).join(".intentio");
+    let _ = std::fs::create_dir_all(&dir);
+
+    // The latest report on its own, for reading by eye.
+    let _ = std::fs::write(
+        dir.join("terminal-diagnostics.json"),
+        serde_json::to_string_pretty(&report).unwrap_or_default(),
+    );
+
+    // And a line appended to a log, because the interesting reports are the
+    // ones that something else overwrote: a lost GPU context is followed by a
+    // resize a second later, and the record of the loss was the one that
+    // mattered. One JSON object per line, newest last.
+    use std::io::Write as _;
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join("terminal-diagnostics.log"))
+    {
+        let stamped = serde_json::json!({
+            "at": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or_default(),
+            "report": report,
+        });
+        let _ = writeln!(file, "{}", serde_json::to_string(&stamped).unwrap_or_default());
     }
-    let _ = std::fs::write(path, serde_json::to_string_pretty(&report).unwrap_or_default());
 }
 
 #[tauri::command]

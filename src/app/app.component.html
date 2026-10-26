@@ -263,6 +263,7 @@
         <app-terminal-pane
           [tab]="tab"
           [settings]="settings()"
+          [showing]="tab.id === active()"
           (exited)="onExited($event)"
         ></app-terminal-pane>
       </div>
