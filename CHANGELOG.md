@@ -1,3 +1,10 @@
+## [1.5.1](https://github.com/intentio-software/int-terminal/compare/v1.5.0...v1.5.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* give the GPU renderer to the tab you are looking at ([627b3e8](https://github.com/intentio-software/int-terminal/commit/627b3e8202129d7b271460cb892f167b8beda235))
+
 # [1.5.0](https://github.com/intentio-software/int-terminal/compare/v1.4.0...v1.5.0) (2026-10-19)
 
 
