@@ -8,6 +8,17 @@
 
 /* ------------------------------------------------------------------ strip */
 
+/* The tabs wrap; the controls do not. They used to share one scrolling strip,
+   so past about ten tabs the button for an eleventh had scrolled out of
+   reach. */
+.tabbar {
+  display: flex;
+  align-items: flex-start;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding-right: 6px;
+}
+
 .strip {
   /* Chrome, not text. Without this, dragging a tab or double-clicking to
      rename one starts a browser text selection and leaves the captions
@@ -15,15 +26,20 @@
      xterm does its own. */
   user-select: none;
   -webkit-user-select: none;
+  --tab-height: 32px;
+  --tab-gap: 2px;
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: stretch;
-  gap: 1px;
-  height: 40px;
-  padding: 0 8px 0 84px; /* room for the traffic lights */
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--tab-gap);
+  padding: 4px 0 4px 8px;
+  /* Three rows, then it scrolls. Wrapping without a limit would let twenty
+     tabs take half the window from the thing the window is for. */
+  max-height: calc(3 * var(--tab-height) + 2 * var(--tab-gap) + 8px);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
   /* A slim scrollbar rather than none. Hiding it entirely left no sign that
      there were tabs past the edge, which is exactly the thing somebody needs
      to know once there are more tabs than fit. */
@@ -31,7 +47,7 @@
   scrollbar-color: var(--border) transparent;
 }
 .strip::-webkit-scrollbar {
-  height: 3px;
+  width: 3px;
 }
 .strip::-webkit-scrollbar-track {
   background: transparent;
@@ -43,58 +59,31 @@
 .strip:hover::-webkit-scrollbar-thumb {
   background: var(--ink-faint);
 }
+/* A hairline at the bottom when there are rows below, because a scrollbar on
+   macOS is invisible until you are already scrolling - no use at all for
+   telling somebody there is more to see. */
+.strip.scrolls {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 10px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 10px), transparent 100%);
+}
 
-/* Something to click.
- *
- * macOS draws overlay scrollbars, which means a scrollbar is invisible until
- * you are already scrolling - no use at all for telling somebody there is more
- * to see. These sit over the ends of the strip and only exist when they would
- * do something. */
-.strip-arrow {
-  position: absolute;
-  top: 0;
-  z-index: 6;
-  width: 22px;
+/* The traffic lights. An item in the flow rather than padding on the strip,
+   so only the first row is indented past them and the second starts at the
+   left edge like any other row. */
+.lights {
+  flex: none;
+  width: 76px;
+  height: var(--tab-height);
+}
+
+/* Always reachable, whatever the tabs are doing. */
+.strip-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
   height: 40px;
-  border: none;
-  background: var(--panel);
-  color: var(--ink-muted);
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
-}
-.strip-arrow:hover {
-  color: var(--accent);
-}
-.strip-arrow.left {
-  left: 84px; /* clear of the traffic lights */
-  box-shadow: 6px 0 8px -4px rgba(0, 0, 0, 0.5);
-}
-.strip-arrow.right {
-  right: 0;
-  box-shadow: -6px 0 8px -4px rgba(0, 0, 0, 0.5);
-}
-
-/* Faded at whichever end has more tabs behind it, so the strip says which way
-   to look. The classes are set from the component, because CSS cannot ask
-   whether an element is scrolled. */
-.strip.more-left {
-  mask-image: linear-gradient(to right, transparent 84px, #000 112px);
-  -webkit-mask-image: linear-gradient(to right, transparent 84px, #000 112px);
-}
-.strip.more-right {
-  mask-image: linear-gradient(to left, transparent 0, #000 28px);
-  -webkit-mask-image: linear-gradient(to left, transparent 0, #000 28px);
-}
-.strip.more-left.more-right {
-  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
-}
-
-/* Fills whatever the tabs leave, so there is always somewhere to grab. */
-.grab {
-  flex: 1;
-  min-width: 24px;
+  padding-left: 4px;
 }
 
 .tab {
@@ -102,13 +91,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  /* Shrink before scrolling, as a browser does, but not past the point where
-     the name stops being a name. 72px fitted twelve tabs and showed "ta…" on
-     every one of them, which is twelve tabs you cannot tell apart - worse
-     than scrolling. At 92px a designator reads in full and a longer name
-     still gives you its first several characters. */
-  min-width: 92px;
-  max-width: 210px;
+  /* Wrap rather than shrink. Squeezing twelve tabs into one row left "ta…"
+     on every one of them, which is twelve tabs you cannot tell apart; 128px
+     keeps a name a name and the row below costs nothing but a row. Tabs
+     share whatever their own row has spare, so a row is never ragged. */
+  flex: 1 1 150px;
+  min-width: 128px;
+  max-width: 220px;
+  height: var(--tab-height);
   padding: 0 6px 0 11px;
   border-radius: 7px 7px 0 0;
   color: var(--ink-faint);
@@ -276,7 +266,9 @@
   user-select: none;
   -webkit-user-select: none;
   position: absolute;
-  top: 44px;
+  /* The bar is as tall as its rows of tabs, so the panel is placed under
+     whatever it turned out to be rather than under a number. */
+  top: calc(var(--tabbar-height, 40px) + 4px);
   right: 12px;
   z-index: 10;
   display: flex;

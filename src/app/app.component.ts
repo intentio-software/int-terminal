@@ -21,6 +21,7 @@ import { ShellService } from "./services/shell.service";
 import { UpdaterService } from "./services/updater.service";
 import { CURSOR_STYLES, SavedSession, SshHost, TAB_COLOURS, TAB_EMOJI, Tab, TerminalSettings } from "./models/tab";
 import { quotePaths } from "./models/shell-quote";
+import { Extent, indexAt, move } from "./models/reorder";
 import { Activity, TabActivity } from "./models/tab";
 
 /** Size steps, so zoom lands on values that render crisply. */
@@ -103,8 +104,8 @@ export class AppComponent implements OnInit {
     }
   ];
   /** Whether there are tabs past the left or right edge of the strip. */
-  readonly moreLeft = signal(false);
-  readonly moreRight = signal(false);
+  /** True when the strip has more rows of tabs than it is showing. */
+  readonly stripScrolls = signal(false);
   /** What each tab is doing, keyed by tab id. */
   readonly activity = signal<Record<string, TabActivity>>({});
 
@@ -112,6 +113,7 @@ export class AppComponent implements OnInit {
   readonly dragging = signal<string>("");
   private dragFrom = 0;
   private dragStartX = 0;
+  private dragStartY = 0;
   private moved = false;
 
   async ngOnInit(): Promise<void> {
@@ -209,27 +211,12 @@ export class AppComponent implements OnInit {
   }
 
   /**
-   * Keep the strip usable once there are more tabs than fit.
+   * Watch the strip so it knows when it has more rows than it is showing.
    *
-   * Three things, none of which a strip does on its own. It reports which end
-   * has tabs behind it, so the fade can say which way to look. It turns a
-   * vertical wheel into horizontal movement, because a mouse has no sideways
-   * and a strip is the one place people expect that to work anyway. And it
-   * brings the current tab into view, which matters most for the keyboard:
-   * jumping to tab nine with Cmd+9 and landing on something you cannot see is
-   * worse than not jumping at all.
-   */
-  onStripScroll(event: Event): void {
-    this.measureStrip(event.target as HTMLElement);
-  }
-
-  /**
-   * Watch the strip so the arrows are right before anybody touches it.
-   *
-   * Measuring only on scroll was useless: until you had already scrolled,
-   * nothing said there was anywhere to scroll to. The strip changes width when
-   * the window does and changes content when a tab opens or closes, so both
-   * have to be watched.
+   * The strip wraps rather than shrinking: a tab narrow enough to fit twelve
+   * of them is a tab whose name you cannot read, and twelve tabs you cannot
+   * tell apart are worse than two rows of tabs you can. Past three rows it
+   * scrolls, because the strip is not allowed to eat the terminal.
    */
   private watchStrip(): void {
     const strip = document.querySelector<HTMLElement>(".strip");
@@ -243,58 +230,44 @@ export class AppComponent implements OnInit {
     new MutationObserver(() => this.measureStrip(strip)).observe(strip, { childList: true });
   }
 
-  /** Step the strip along by most of a screenful. */
-  scrollStrip(direction: 1 | -1): void {
-    const strip = document.querySelector<HTMLElement>(".strip");
-    if (!strip) {
-      return;
-    }
-    // Not a whole screenful: leaving a tab or two in common between before and
-    // after is what stops a jump feeling like losing your place.
-    strip.scrollBy({ left: direction * (strip.clientWidth - 120), behavior: "smooth" });
-  }
-
-  onStripWheel(event: WheelEvent): void {
-    const strip = event.currentTarget as HTMLElement;
-    if (strip.scrollWidth <= strip.clientWidth) {
-      return;
-    }
-    // A trackpad already sends deltaX; only stand in for a wheel that cannot.
-    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
-      return;
-    }
-    event.preventDefault();
-    strip.scrollLeft += event.deltaY;
-  }
-
   private measureStrip(strip: HTMLElement | null): void {
     if (!strip) {
       return;
     }
-    const end = strip.scrollWidth - strip.clientWidth;
-    this.moreLeft.set(strip.scrollLeft > 1);
-    // A pixel of slack: sub-pixel layout means scrollLeft rarely reaches the
-    // end exactly, and a fade that never quite goes away looks broken.
-    this.moreRight.set(strip.scrollLeft < end - 1);
+    // A pixel of slack: sub-pixel layout means a strip that fits exactly
+    // still reports a scrollHeight a fraction larger than its height.
+    this.stripScrolls.set(strip.scrollHeight > strip.clientHeight + 1);
+
+    // The panels that hang below the bar need to know how tall it turned out
+    // to be, which with wrapping is a different answer on a second row.
+    const bar = strip.closest<HTMLElement>(".tabbar");
+    if (bar) {
+      bar.ownerDocument.documentElement.style.setProperty(
+        "--tabbar-height",
+        `${Math.round(bar.getBoundingClientRect().height)}px`
+      );
+    }
   }
 
+  /**
+   * Bring a tab into view.
+   *
+   * Matters most for the keyboard: jumping to tab nine with Cmd+9 and landing
+   * on a row that is scrolled out of sight is worse than not jumping at all.
+   * Rows, not columns, now that the strip wraps.
+   */
   private revealTab(id: string): void {
     const strip = document.querySelector<HTMLElement>(".strip");
     const tab = document.querySelector<HTMLElement>(`[data-tab="${id}"]`);
     if (!strip || !tab) {
       return;
     }
-    const left = tab.offsetLeft;
-    const right = left + tab.offsetWidth;
-    const viewLeft = strip.scrollLeft;
-    const viewRight = viewLeft + strip.clientWidth;
-    // The left inset holds the traffic lights, so a tab scrolled flush left is
-    // still half under them.
-    const inset = 92;
-    if (left - inset < viewLeft) {
-      strip.scrollTo({ left: Math.max(0, left - inset), behavior: "smooth" });
-    } else if (right > viewRight) {
-      strip.scrollTo({ left: right - strip.clientWidth + 12, behavior: "smooth" });
+    const top = tab.offsetTop;
+    const bottom = top + tab.offsetHeight;
+    if (top < strip.scrollTop) {
+      strip.scrollTo({ top, behavior: "smooth" });
+    } else if (bottom > strip.scrollTop + strip.clientHeight) {
+      strip.scrollTo({ top: bottom - strip.clientHeight, behavior: "smooth" });
     }
     this.measureStrip(strip);
   }
@@ -519,6 +492,7 @@ export class AppComponent implements OnInit {
     }
     this.dragFrom = this.tabs().findIndex((t) => t.id === tab.id);
     this.dragStartX = event.clientX;
+    this.dragStartY = event.clientY;
     this.moved = false;
     this.dragging.set(tab.id);
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
@@ -530,7 +504,13 @@ export class AppComponent implements OnInit {
       return;
     }
     // A few pixels of slop, so a click with a shaky hand is still a click.
-    if (!this.moved && Math.abs(event.clientX - this.dragStartX) < 5) {
+    // Either direction counts: with the strip wrapped, dragging a tab to the
+    // row below is a drag that barely moves sideways at all.
+    if (
+      !this.moved &&
+      Math.abs(event.clientX - this.dragStartX) < 5 &&
+      Math.abs(event.clientY - this.dragStartY) < 5
+    ) {
       return;
     }
     this.moved = true;
@@ -539,23 +519,21 @@ export class AppComponent implements OnInit {
     if (!strip) {
       return;
     }
-    const elements = Array.from(strip.querySelectorAll<HTMLElement>(".tab"));
-    // The tab whose middle the cursor has passed is the one to swap with.
-    const target = elements.findIndex((element) => {
-      const box = element.getBoundingClientRect();
-      return event.clientX < box.left + box.width / 2;
-    });
-    const to = target === -1 ? elements.length - 1 : target;
+    // Through reorder.ts rather than worked out here. The same rule used to
+    // be written out in both places, which meant ten tests covering a copy of
+    // the logic that never ran.
+    const extents: Extent[] = Array.from(strip.querySelectorAll<HTMLElement>(".tab")).map(
+      (element) => {
+        const box = element.getBoundingClientRect();
+        return { left: box.left, width: box.width, top: box.top, height: box.height };
+      }
+    );
+    const to = indexAt(extents, event.clientX, event.clientY);
     const from = this.tabs().findIndex((tab) => tab.id === id);
     if (to === from || to < 0) {
       return;
     }
-    this.tabs.update((tabs) => {
-      const next = [...tabs];
-      const [moving] = next.splice(from, 1);
-      next.splice(to, 0, moving);
-      return next;
-    });
+    this.tabs.update((tabs) => move(tabs, from, to));
   }
 
   onTabPointerUp(tab: Tab, event: PointerEvent): void {

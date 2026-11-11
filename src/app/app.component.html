@@ -5,24 +5,19 @@
   <!-- data-tauri-drag-region, not -webkit-app-region: the latter is an
        Electron property and does nothing in WKWebView, which is why the
        window could not be dragged at all. -->
-  <!-- Only once there is somewhere to go. An arrow that does nothing is worse
-       than no arrow: it invites a click and then ignores it. -->
-  @if (moreLeft()) {
-    <button class="strip-arrow left" title="Earlier tabs" (click)="scrollStrip(-1)">‹</button>
-  }
-  @if (moreRight()) {
-    <button class="strip-arrow right" title="Later tabs" (click)="scrollStrip(1)">›</button>
-  }
-
-  <nav
-    class="strip"
-    [class.more-left]="moreLeft()"
-    [class.more-right]="moreRight()"
-    (scroll)="onStripScroll($event)"
-    (wheel)="onStripWheel($event)"
-    data-tauri-drag-region
-    (click)="editing.set(''); renaming.set(''); settingsOpen.set(false)"
-  >
+  <!-- The tabs wrap and the controls do not. They used to sit at the end of
+       the same scrolling strip, which meant that past about ten tabs the way
+       to open an eleventh had scrolled out of sight. -->
+  <div class="tabbar" data-tauri-drag-region>
+    <nav
+      class="strip"
+      [class.scrolls]="stripScrolls()"
+      data-tauri-drag-region
+      (click)="editing.set(''); renaming.set(''); settingsOpen.set(false)"
+    >
+      <!-- Only the first row needs to clear the traffic lights, so the inset
+           is an item in the flow rather than padding on the strip. -->
+      <span class="lights" aria-hidden="true" data-tauri-drag-region></span>
     @for (tab of tabs(); track tab.id) {
       <div
         class="tab"
@@ -66,20 +61,21 @@
       </div>
     }
 
-    <button class="new" title="New tab (⌘T)" (click)="newTab()">+</button>
-    <button class="new" title="Keyboard shortcuts (⌘/)" (click)="shortcutsOpen.set(true)">?</button>
-    <button class="new" title="Connect to a host (⌘K)" (click)="pickerOpen.set(true)">⇢</button>
-    <button
-      class="new preferences-button"
-      title="Preferences"
-      (click)="togglePreferences($event)"
-    >
-      ⚙
-    </button>
-    <!-- Whatever is left over after the tabs, so there is always somewhere to
-         grab even when the strip is full. -->
-    <span class="grab" data-tauri-drag-region></span>
-  </nav>
+    </nav>
+
+    <div class="strip-actions">
+      <button class="new" title="New tab (⌘T)" (click)="newTab()">+</button>
+      <button class="new" title="Keyboard shortcuts (⌘/)" (click)="shortcutsOpen.set(true)">?</button>
+      <button class="new" title="Connect to a host (⌘K)" (click)="pickerOpen.set(true)">⇢</button>
+      <button
+        class="new preferences-button"
+        title="Preferences"
+        (click)="togglePreferences($event)"
+      >
+        ⚙
+      </button>
+    </div>
+  </div>
 
   @for (tab of tabs(); track tab.id) {
     @if (editing() === tab.id) {
@@ -253,6 +249,16 @@
         </svg>
       </button>
     </div>
+  }
+
+  <!-- Lost in a styling commit on 30 September, which is how long Cmd+K and
+       the arrow in the bar have opened nothing at all. -->
+  @if (pickerOpen()) {
+    <app-host-picker
+      [hosts]="hosts()"
+      (chosen)="connect($event)"
+      (cancelled)="pickerOpen.set(false)"
+    ></app-host-picker>
   }
 
   <main class="panes">
