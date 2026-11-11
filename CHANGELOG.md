@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/intentio-software/int-terminal/compare/v1.5.1...v1.6.0) (2026-11-11)
+
+
+### Features
+
+* wrap the tabs instead of squeezing them, and keep the controls ([80fa594](https://github.com/intentio-software/int-terminal/commit/80fa594b21c6f8c48d8bd0e8b791b488de9604b0))
+
 ## [1.5.1](https://github.com/intentio-software/int-terminal/compare/v1.5.0...v1.5.1) (2026-10-26)
 
 
