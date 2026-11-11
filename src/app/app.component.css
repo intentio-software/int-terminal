@@ -35,36 +35,19 @@
   align-content: flex-start;
   gap: var(--tab-gap);
   padding: 4px 0 4px 8px;
-  /* Three rows, then it scrolls. Wrapping without a limit would let twenty
-     tabs take half the window from the thing the window is for. */
-  max-height: calc(3 * var(--tab-height) + 2 * var(--tab-gap) + 8px);
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  /* A slim scrollbar rather than none. Hiding it entirely left no sign that
-     there were tabs past the edge, which is exactly the thing somebody needs
-     to know once there are more tabs than fit. */
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-.strip::-webkit-scrollbar {
-  width: 3px;
-}
-.strip::-webkit-scrollbar-track {
-  background: transparent;
-}
-.strip::-webkit-scrollbar-thumb {
-  border-radius: 2px;
-  background: var(--border);
-}
-.strip:hover::-webkit-scrollbar-thumb {
-  background: var(--ink-faint);
-}
-/* A hairline at the bottom when there are rows below, because a scrollbar on
-   macOS is invisible until you are already scrolling - no use at all for
-   telling somebody there is more to see. */
-.strip.scrolls {
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 10px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 10px), transparent 100%);
+  /* No scrollbar, in either direction, ever.
+   *
+   * It is not enough to leave overflow-x alone: CSS promotes a `visible` axis
+   * to `auto` the moment the other axis is not visible, so capping the height
+   * and scrolling vertically quietly gave the strip a horizontal scrollbar as
+   * well. The two then fought - a vertical bar takes width, which fits fewer
+   * tabs per row, which makes another row, while a horizontal bar takes the
+   * height that row needed - and at the widths where both were marginal the
+   * strip flickered between the two states several times a second.
+   *
+   * So the strip is simply as tall as its rows. The terminal gives up the
+   * space, which is the honest trade: tabs you opened are tabs you want to
+   * see. */
 }
 
 /* The traffic lights. An item in the flow rather than padding on the strip,

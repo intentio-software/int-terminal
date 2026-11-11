@@ -104,8 +104,6 @@ export class AppComponent implements OnInit {
     }
   ];
   /** Whether there are tabs past the left or right edge of the strip. */
-  /** True when the strip has more rows of tabs than it is showing. */
-  readonly stripScrolls = signal(false);
   /** What each tab is doing, keyed by tab id. */
   readonly activity = signal<Record<string, TabActivity>>({});
 
@@ -207,16 +205,15 @@ export class AppComponent implements OnInit {
     ]);
     this.active.set(id);
     // A new tab goes on the end, which is off-screen once the strip is full.
-    queueMicrotask(() => this.revealTab(id));
   }
 
   /**
-   * Watch the strip so it knows when it has more rows than it is showing.
+   * Watch the strip so the panels below it know how tall it turned out to be.
    *
    * The strip wraps rather than shrinking: a tab narrow enough to fit twelve
    * of them is a tab whose name you cannot read, and twelve tabs you cannot
-   * tell apart are worse than two rows of tabs you can. Past three rows it
-   * scrolls, because the strip is not allowed to eat the terminal.
+   * tell apart are worse than two rows of tabs you can. It never scrolls, so
+   * its height is simply however many rows it needed.
    */
   private watchStrip(): void {
     const strip = document.querySelector<HTMLElement>(".strip");
@@ -231,16 +228,9 @@ export class AppComponent implements OnInit {
   }
 
   private measureStrip(strip: HTMLElement | null): void {
-    if (!strip) {
-      return;
-    }
-    // A pixel of slack: sub-pixel layout means a strip that fits exactly
-    // still reports a scrollHeight a fraction larger than its height.
-    this.stripScrolls.set(strip.scrollHeight > strip.clientHeight + 1);
-
     // The panels that hang below the bar need to know how tall it turned out
-    // to be, which with wrapping is a different answer on a second row.
-    const bar = strip.closest<HTMLElement>(".tabbar");
+    // to be, which with wrapping is a different answer on every row.
+    const bar = strip?.closest<HTMLElement>(".tabbar");
     if (bar) {
       bar.ownerDocument.documentElement.style.setProperty(
         "--tabbar-height",
@@ -249,32 +239,9 @@ export class AppComponent implements OnInit {
     }
   }
 
-  /**
-   * Bring a tab into view.
-   *
-   * Matters most for the keyboard: jumping to tab nine with Cmd+9 and landing
-   * on a row that is scrolled out of sight is worse than not jumping at all.
-   * Rows, not columns, now that the strip wraps.
-   */
-  private revealTab(id: string): void {
-    const strip = document.querySelector<HTMLElement>(".strip");
-    const tab = document.querySelector<HTMLElement>(`[data-tab="${id}"]`);
-    if (!strip || !tab) {
-      return;
-    }
-    const top = tab.offsetTop;
-    const bottom = top + tab.offsetHeight;
-    if (top < strip.scrollTop) {
-      strip.scrollTo({ top, behavior: "smooth" });
-    } else if (bottom > strip.scrollTop + strip.clientHeight) {
-      strip.scrollTo({ top: bottom - strip.clientHeight, behavior: "smooth" });
-    }
-    this.measureStrip(strip);
-  }
 
   select(id: string): void {
     this.active.set(id);
-    queueMicrotask(() => this.revealTab(id));
     // A pane that was hidden measured as zero, so it has to re-measure before
     // it is usable.
     queueMicrotask(() => {
