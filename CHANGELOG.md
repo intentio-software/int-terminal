@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/intentio-software/int-terminal/compare/v1.6.0...v1.6.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* no scrollbars on the tabs, in either direction ([a5275da](https://github.com/intentio-software/int-terminal/commit/a5275da46d405776e8507dfe0782dca189c0dfdb))
+
 # [1.6.0](https://github.com/intentio-software/int-terminal/compare/v1.5.1...v1.6.0) (2026-11-11)
 
 
